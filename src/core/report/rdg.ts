@@ -44,14 +44,17 @@ export const FORBIDDEN_LEGAL_CLAIMS: readonly ForbiddenPattern[] = [
 
 export class RdgBoundaryError extends Error {
   override readonly name = 'RdgBoundaryError';
-  constructor(
-    readonly matches: readonly { text: string; why: string }[],
-    context: string,
-  ) {
+  readonly matches: readonly { text: string; why: string }[];
+
+  // Written as explicit assignment rather than a parameter property: Node's
+  // --experimental-strip-types cannot erase parameter properties, and the CLI
+  // is run straight from source during development.
+  constructor(matches: readonly { text: string; why: string }[], context: string) {
     super(
       `${context} enthält unzulässige rechtliche Aussagen (RDG-Grenze):\n` +
         matches.map((m) => `  - "${m.text}": ${m.why}`).join('\n'),
     );
+    this.matches = matches;
   }
 }
 

@@ -136,10 +136,18 @@ export type KnownBarrier = z.infer<typeof KnownBarrierSchema>;
 
 export class StatementValidationError extends Error {
   override readonly name = 'StatementValidationError';
-  constructor(readonly issues: readonly string[]) {
+  readonly issues: readonly string[];
+
+  // Explicit assignment rather than a parameter property: Node's
+  // --experimental-strip-types cannot erase parameter properties, and the CLI
+  // is run straight from source during development.
+  constructor(issues: readonly string[]) {
     super(
-      `Die Angaben für die Barrierefreiheitserklärung sind unvollständig:\n${issues.map((i) => `  - ${i}`).join('\n')}`,
+      `Die Angaben für die Barrierefreiheitserklärung sind unvollständig:\n${issues
+        .map((i) => `  - ${i}`)
+        .join('\n')}`,
     );
+    this.issues = issues;
   }
 }
 
