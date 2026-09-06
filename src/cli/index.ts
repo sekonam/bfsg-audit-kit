@@ -1,5 +1,6 @@
 #!/usr/bin/env node
 import { readFile, readdir } from 'node:fs/promises';
+import { dirname, resolve } from 'node:path';
 import { join } from 'node:path';
 import { Command, Option } from 'commander';
 import { applyDotEnv, loadConfig, type ConfigOverrides } from '../config/config.ts';
@@ -7,7 +8,6 @@ import { describePolicy, PolicyError } from '../core/crawl/policy.ts';
 import { shopIdFromUrl } from '../core/crawl/url.ts';
 import { formatNumberDe } from '../core/report/format.ts';
 import { conformanceBand } from '../core/findings/score.ts';
-import type { ScanResult } from '../core/types.ts';
 import { scanShop } from '../pipeline/scan.ts';
 import {
   SCAN_JSON,
@@ -20,6 +20,7 @@ import { loadStatementAnswers, writeStatement } from '../pipeline/statement.ts';
 import { readBaseline, writeBaseline, writeRegressionReport } from '../pipeline/monitor.ts';
 import { StatementValidationError } from '../core/statement/model.ts';
 import { RdgBoundaryError } from '../core/report/rdg.ts';
+import { loadScanResult, ScanFileError, validateScanResult } from '../pipeline/load-scan.ts';
 
 /**
  * CLI for one operator running one consulting practice.
@@ -81,8 +82,7 @@ politenessOptions(
     .description('Shop crawlen, prüfen und das Ergebnis als scan.json speichern')
     .option('--out <dir>', 'Ausgabeverzeichnis (Standard: <Datenverzeichnis>/<Host>)')
     .option('--no-lighthouse', 'Lighthouse überspringen')
-    .option('--report', 'Bericht direkt miterzeugen')
-    .option('--pdf', 'PDF miterzeugen (impliziert --report)'),
+    .option('--pdf', 'zusätzlich ein PDF erzeugen'),
 ).action(async (url: string, options: Record<string, unknown>) => {
   const config = loadConfig(process.env, overridesFrom(options));
   const outDir = (options['out'] as string) ?? shopOutputDir(config.dataDir, shopIdFromUrl(url));
@@ -131,8 +131,10 @@ program
   .option('--pdf', 'zusätzlich ein PDF erzeugen')
   .action(async (scanPath: string, options: Record<string, unknown>) => {
     const config = loadConfig(process.env);
-    const scan = JSON.parse(await readFile(scanPath, 'utf8')) as ScanResult;
-    const outDir = (options['out'] as string) ?? scanPath.replace(/[^/]+$/, '');
+    const scan = await loadScanResult(scanPath);
+    // dirname('scan.json') is '.', where the old `replace` produced '' and
+    // mkdir('') threw ENOENT.
+    const outDir = (options['out'] as string) ?? dirname(resolve(scanPath));
     const written = await writeReport(outDir, scan, {
       shopName: options['shopName'] as string | undefined,
       operatorName: config.operatorName,
@@ -169,9 +171,8 @@ program
   .argument('<scan.json>', 'Prüfung, die als Vergleichsgrundlage dienen soll')
   .description('Eine Prüfung als Vergleichsgrundlage für die Überwachung festlegen')
   .action(async (scanPath: string) => {
-    const scan = JSON.parse(await readFile(scanPath, 'utf8')) as ScanResult;
-    const outDir = scanPath.replace(/[^/]+$/, '') || '.';
-    console.log(await writeBaseline(outDir, scan));
+    const scan = await loadScanResult(scanPath);
+    console.log(await writeBaseline(dirname(resolve(scanPath)), scan));
   });
 
 // --------------------------------------------------------------------------
@@ -226,9 +227,10 @@ program
     for (const entry of entries) {
       if (!entry.isDirectory()) continue;
       try {
-        const scan = JSON.parse(
-          await readFile(join(root, entry.name, SCAN_JSON), 'utf8'),
-        ) as ScanResult;
+        const scan = validateScanResult(
+          JSON.parse(await readFile(join(root, entry.name, SCAN_JSON), 'utf8')),
+          entry.name,
+        );
         rows.push({
           shop: scan.shopId,
           prospect: scan.score.prospect,
@@ -261,9 +263,12 @@ async function main(): Promise<void> {
     if (
       error instanceof PolicyError ||
       error instanceof StatementValidationError ||
-      error instanceof RdgBoundaryError
+      error instanceof RdgBoundaryError ||
+      error instanceof ScanFileError ||
+      (error as NodeJS.ErrnoException)?.code === 'ENOENT'
     ) {
-      console.error(`\n${error.name}: ${error.message}\n`);
+      const named = error as Error;
+      console.error(`\n${named.name}: ${named.message}\n`);
       process.exitCode = 1;
       return;
     }

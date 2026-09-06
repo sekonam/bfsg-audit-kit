@@ -63,6 +63,8 @@ Every bug found in review gets a **failing test first**, then the fix.
 | `RdgBoundaryError` thrown at render time       | Something asserted or promised a legal position. Rewrite it as a technical fact.                    |
 | Best-practice findings excluded from the score | They are not AA conformance failures and must not be counted as such.                               |
 | `monitor` exits 2                              | That is the notification channel. There is no email.                                                |
+| A navigation is aborted mid-redirect           | The redirect target failed the robots/same-site gate. Refusing the hop is the point.                |
+| `loadScanResult` rejects a hand-edited file    | Its URLs would be rendered into `href` attributes. Validate, do not cast.                           |
 
 ## Adding a rule to the German catalogue
 

@@ -192,3 +192,85 @@ describe('renderReportHtml', () => {
     expect(() => renderReportHtml(poisoned)).toThrow(RdgBoundaryError);
   });
 });
+
+/**
+ * Regression tests from the independent code review. Each reproduced a real
+ * defect before the fix.
+ */
+describe('escaping and URL safety — findings from review', () => {
+  it('never emits a javascript: or data: href, however the value arrived', () => {
+    const scan = sampleScan();
+    const poisoned = {
+      ...scan,
+      origin: 'javascript:alert(document.domain)',
+      findings: [
+        {
+          ...scan.findings[0]!,
+          helpUrl: 'javascript:alert(1)',
+          instances: [
+            {
+              url: 'data:text/html,<script>alert(1)</script>',
+              journey: 'home' as const,
+              selector: '#a',
+              snippet: '<input>',
+            },
+          ],
+        },
+      ],
+    };
+    const html = renderReportHtml(poisoned);
+    expect(html).not.toMatch(/href="javascript:/i);
+    expect(html).not.toMatch(/href="data:/i);
+    // The value is still shown as text so the operator can see what was in the
+    // scan; it is only the attribute that is made inert.
+    expect(html).toContain('javascript:alert(document.domain)');
+    expect(html).toMatch(/href="#"/);
+  });
+
+  it('does not fall over on a scan.json with an unparseable origin', () => {
+    const scan = sampleScan();
+    expect(() => renderReportHtml({ ...scan, origin: 'nicht-mal-eine-url' })).not.toThrow();
+  });
+
+  it('renders a report for a shop whose own markup contains a legal word', () => {
+    // "Haftung" is an ordinary German footer link. Checking the raw HTML made
+    // such a shop unreportable: the scan exited 1 with no report at all.
+    const scan = sampleScan();
+    const withFooterLink = {
+      ...scan,
+      findings: [
+        {
+          ...scan.findings[0]!,
+          instances: [
+            {
+              url: 'https://muster-shop.de/',
+              journey: 'home' as const,
+              selector: 'footer a',
+              snippet: '<a href="/haftung">Haftung</a>',
+            },
+          ],
+        },
+      ],
+    };
+    expect(() => renderReportHtml(withFooterLink)).not.toThrow();
+    expect(renderReportHtml(withFooterLink)).toContain('/haftung');
+  });
+
+  it('still refuses a legal claim in text this codebase authored', () => {
+    const scan = sampleScan();
+    expect(() =>
+      renderReportHtml({
+        ...scan,
+        findings: [{ ...scan.findings[0]!, remediationDe: 'Sonst droht ein Bußgeld.' }],
+      }),
+    ).toThrow(RdgBoundaryError);
+  });
+
+  it('keeps the scorecard and the severity table telling the same story', () => {
+    const scan = sampleScan();
+    const html = renderReportHtml(scan);
+    const instances = scan.score.bySeverity.reduce((n, b) => n + b.instances, 0);
+    expect(scan.score.totalInstances).toBe(instances);
+    expect(html).toContain(`${instances}</span>`);
+  });
+});

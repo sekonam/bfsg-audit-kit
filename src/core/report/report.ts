@@ -10,6 +10,7 @@ import {
   formatDateTimeDe,
   formatNumberDe,
   plural,
+  safeHref,
   severityLabelDe,
   severityMeaningDe,
 } from './format.ts';
@@ -39,6 +40,15 @@ export interface ReportOptions {
 
 const DEFAULT_MAX_INSTANCES = 5;
 
+/** Host of a URL, or the raw string when it does not parse. */
+function hostOf(url: string): string {
+  try {
+    return new URL(url).host;
+  } catch {
+    return url;
+  }
+}
+
 function badge(severity: Severity): string {
   return `<span class="badge badge-${severity}">${escapeHtml(severityLabelDe(severity))}</span>`;
 }
@@ -50,7 +60,7 @@ function instancesTable(finding: Finding, max: number, screenshotBase: string): 
       (instance) => `
         <tr>
           <td>${escapeHtml(journeyLabel(instance.journey))}</td>
-          <td><a href="${escapeHtml(instance.url)}">${escapeHtml(instance.url)}</a></td>
+          <td><a href="${escapeHtml(safeHref(instance.url))}">${escapeHtml(instance.url)}</a></td>
           <td><code>${escapeHtml(instance.selector)}</code></td>
           <td><code>${escapeHtml(instance.snippet)}</code></td>
         </tr>`,
@@ -119,7 +129,9 @@ function findingBlock(
       <p><strong>Betroffenes Kriterium:</strong> ${criteria}</p>
       <p><strong>Empfohlene Behebung:</strong> ${escapeHtml(finding.remediationDe)}</p>
       <p class="muted">Prüfregel: <code>${escapeHtml(finding.ruleId)}</code> (${escapeHtml(finding.source)})${
-        finding.helpUrl ? ` — <a href="${escapeHtml(finding.helpUrl)}">Regelbeschreibung</a>` : ''
+        finding.helpUrl
+          ? ` — <a href="${escapeHtml(safeHref(finding.helpUrl))}">Regelbeschreibung</a>`
+          : ''
       }</p>
       ${instancesTable(finding, options.maxInstancesPerFinding, options.screenshotBase)}
     </div>`;
@@ -137,7 +149,7 @@ function journeyTable(scan: ScanResult): string {
     return `
       <tr>
         <th scope="row">${escapeHtml(journeyLabel(journey))}</th>
-        <td>${page ? `<a href="${escapeHtml(page.url)}">${escapeHtml(page.url)}</a>` : '<span class="muted">nicht erreicht</span>'}</td>
+        <td>${page ? `<a href="${escapeHtml(safeHref(page.url))}">${escapeHtml(page.url)}</a>` : '<span class="muted">nicht erreicht</span>'}</td>
         <td class="numeric">${page ? formatNumberDe(findings.length) : '—'}</td>
         <td>${worst ? badge(worst) : page ? '<span class="badge badge-ok">ohne Befund</span>' : '—'}</td>
       </tr>`;
@@ -363,7 +375,8 @@ export function renderReportHtml(scan: ScanResult, options: ReportOptions = {}):
     maxInstancesPerFinding: options.maxInstancesPerFinding ?? DEFAULT_MAX_INSTANCES,
     screenshotBase: options.screenshotBase ?? 'screenshots/',
   };
-  const shopName = options.shopName ?? new URL(scan.origin).host;
+  // scan.json can come from disk, so `origin` is not guaranteed to parse.
+  const shopName = options.shopName ?? hostOf(scan.origin);
   const title = `Barrierefreiheits-Prüfbericht — ${shopName}`;
   const missing: Journey[] = CRITICAL_JOURNEYS.filter(
     (j) => !scan.crawl.pages.some((p) => p.journey === j),
@@ -373,7 +386,7 @@ export function renderReportHtml(scan: ScanResult, options: ReportOptions = {}):
     <p class="muted">Technischer Prüfbericht</p>
     <h1>${escapeHtml(title)}</h1>
     <dl class="meta">
-      <div><dt>Geprüfte Adresse</dt><dd><a href="${escapeHtml(scan.origin)}">${escapeHtml(scan.origin)}</a></dd></div>
+      <div><dt>Geprüfte Adresse</dt><dd><a href="${escapeHtml(safeHref(scan.origin))}">${escapeHtml(scan.origin)}</a></dd></div>
       <div><dt>Prüfzeitpunkt</dt><dd>${escapeHtml(formatDateTimeDe(scan.scannedAt))}</dd></div>
       <div><dt>Prüfmaßstab</dt><dd>WCAG 2.1 Stufe AA / EN 301 549 (Kapitel 9)</dd></div>
       <div><dt>Shopsystem</dt><dd>${escapeHtml(platformLabel(scan.crawl.platform))}</dd></div>
@@ -428,6 +441,8 @@ export function renderReportHtml(scan: ScanResult, options: ReportOptions = {}):
     <p>Prüfbericht vom ${escapeHtml(formatDateTimeDe(scan.scannedAt))} · Prüfmaßstab WCAG 2.1 AA / EN 301 549.</p>`;
 
   const html = renderDocument({ title, headerHtml, mainHtml, footerHtml });
-  assertNoLegalClaims(html, 'Der Prüfbericht');
+  // The report quotes the shop's own markup, so the check runs over the text
+  // this codebase authored, not over the evidence it reproduces.
+  assertNoLegalClaims(html, 'Der Prüfbericht', { quotesEvidence: true });
   return html;
 }

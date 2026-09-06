@@ -65,7 +65,9 @@ export function parseRobots(text: string): RobotsRules {
         // A new user-agent line after rules starts a new group; consecutive
         // user-agent lines share one group.
         if (!expectingAgents) flush();
-        agents.push(value.toLowerCase());
+        // An empty value is not an agent. Recording it would produce the token
+        // "", which prefix-matches everything and would beat the real `*` group.
+        if (value !== '') agents.push(value.toLowerCase());
         expectingAgents = true;
         break;
       case 'allow':
@@ -84,11 +86,11 @@ export function parseRobots(text: string): RobotsRules {
         expectingAgents = false;
         break;
       }
-      case 'sitemap':
-        sitemaps.push(value);
-        break;
       default:
-        expectingAgents = false;
+        // Only the group-member fields above end the agent list. Anything else
+        // — Sitemap, Host, a vendor extension, a typo — is not part of a group
+        // and must neither split one group in two nor merge two into one.
+        if (field === 'sitemap') sitemaps.push(value);
         break;
     }
   }
@@ -119,15 +121,21 @@ export function agentToken(userAgent: string): string {
 function selectGroup(rules: RobotsRules, userAgent: string): RobotsGroup | undefined {
   const token = agentToken(userAgent);
   let specific: RobotsGroup | undefined;
+  // Length of the agent token that actually MATCHED in the selected group.
+  // Comparing against the longest token in the group — matching or not — let a
+  // group that matched only by a short prefix outrank a group naming the bot
+  // exactly, purely because it also listed some unrelated long agent name.
+  let specificMatchLength = -1;
   let wildcard: RobotsGroup | undefined;
+
   for (const group of rules.groups) {
     for (const agent of group.agents) {
       if (agent === '*') {
         wildcard ??= group;
       } else if (token === agent || token.startsWith(agent)) {
-        // Longest (most specific) matching agent wins.
-        if (!specific || agent.length > Math.max(...specific.agents.map((a) => a.length))) {
+        if (agent.length > specificMatchLength) {
           specific = group;
+          specificMatchLength = agent.length;
         }
       }
     }
@@ -148,6 +156,30 @@ function matchLength(pattern: string, path: string): number {
 }
 
 /**
+ * Both spellings of a path: as given, and percent-decoded.
+ *
+ * A URL's `pathname` is percent-encoded, but robots.txt is written by hand and
+ * a German shop writes `Disallow: /über-uns`, not `/%C3%BCber-uns`. Comparing
+ * only the encoded form made every umlaut rule a no-op. Comparing both is the
+ * permissive-to-the-site-owner reading: if either spelling matches a Disallow,
+ * we stay out.
+ */
+function pathVariants(path: string): string[] {
+  const variants = new Set<string>([path]);
+  try {
+    variants.add(decodeURIComponent(path));
+  } catch {
+    // Malformed escape sequence: the raw form is all we have.
+  }
+  try {
+    variants.add(encodeURI(path));
+  } catch {
+    /* ignore */
+  }
+  return [...variants];
+}
+
+/**
  * Is `path` (a path + query, e.g. "/produkte?p=2") crawlable for this agent?
  *
  * Longest matching rule wins; Allow wins ties, which is what lets a site say
@@ -157,10 +189,15 @@ export function isAllowed(rules: RobotsRules, userAgent: string, path: string): 
   const group = selectGroup(rules, userAgent);
   if (!group) return true;
 
+  const variants = pathVariants(path);
   let bestAllow = -1;
   let bestDisallow = -1;
-  for (const rule of group.allow) bestAllow = Math.max(bestAllow, matchLength(rule, path));
-  for (const rule of group.disallow) bestDisallow = Math.max(bestDisallow, matchLength(rule, path));
+  for (const candidate of variants) {
+    for (const rule of group.allow) bestAllow = Math.max(bestAllow, matchLength(rule, candidate));
+    for (const rule of group.disallow) {
+      bestDisallow = Math.max(bestDisallow, matchLength(rule, candidate));
+    }
+  }
 
   if (bestDisallow === -1) return true;
   return bestAllow >= bestDisallow;

@@ -1,5 +1,12 @@
 import { journeyLabel } from '../crawl/journey.ts';
-import { escapeHtml, formatDateTimeDe, formatNumberDe, severityLabelDe } from '../report/format.ts';
+import {
+  escapeHtml,
+  formatDateTimeDe,
+  formatNumberDe,
+  plural,
+  safeHref,
+  severityLabelDe,
+} from '../report/format.ts';
 import { assertNoLegalClaims, SCOPE_ONE_LINER_DE } from '../report/rdg.ts';
 import { renderDocument } from '../report/shell.ts';
 import type { FindingDelta, ScanDiff } from './diff.ts';
@@ -62,7 +69,14 @@ export function renderRegressionReportHtml(
   diff: ScanDiff,
   options: RegressionReportOptions = {},
 ): string {
-  const shopName = options.shopName ?? new URL(diff.origin).host;
+  let shopName = options.shopName;
+  if (!shopName) {
+    try {
+      shopName = new URL(diff.origin).host;
+    } catch {
+      shopName = diff.origin;
+    }
+  }
   const title = `Überwachungsbericht — ${shopName}`;
   const deltaSign = diff.conformanceDelta > 0 ? '+' : '';
 
@@ -72,10 +86,14 @@ export function renderRegressionReportHtml(
          ${escapeHtml(
            [
              diff.newFindings.length > 0
-               ? `${formatNumberDe(diff.newFindings.length)} neue Befunde`
+               ? plural(diff.newFindings.length, 'neuer Befund', 'neue Befunde')
                : '',
              diff.worsened.length > 0
-               ? `${formatNumberDe(diff.worsened.length)} Befunde mit mehr Fundstellen`
+               ? plural(
+                   diff.worsened.length,
+                   'Befund mit mehr Fundstellen',
+                   'Befunde mit mehr Fundstellen',
+                 )
                : '',
              diff.conformanceDelta < 0
                ? `Kennzahl um ${formatNumberDe(Math.abs(diff.conformanceDelta))} Punkte gefallen`
@@ -89,7 +107,9 @@ export function renderRegressionReportHtml(
          <p><strong>Keine Verschlechterung gegenüber der letzten Prüfung.</strong>
          ${
            diff.resolvedFindings.length > 0
-             ? `${escapeHtml(formatNumberDe(diff.resolvedFindings.length))} Befunde sind entfallen.`
+             ? escapeHtml(
+                 `${plural(diff.resolvedFindings.length, 'Befund ist', 'Befunde sind')} entfallen.`,
+               )
              : ''
          }</p>
        </div>`;
@@ -98,7 +118,7 @@ export function renderRegressionReportHtml(
     <p class="muted">Regelmäßige technische Überwachung</p>
     <h1>${escapeHtml(title)}</h1>
     <dl class="meta">
-      <div><dt>Adresse</dt><dd><a href="${escapeHtml(diff.origin)}">${escapeHtml(diff.origin)}</a></dd></div>
+      <div><dt>Adresse</dt><dd><a href="${escapeHtml(safeHref(diff.origin))}">${escapeHtml(diff.origin)}</a></dd></div>
       <div><dt>Vergleichszeitraum</dt><dd>${escapeHtml(formatDateTimeDe(diff.baselineAt))} → ${escapeHtml(formatDateTimeDe(diff.currentAt))}</dd></div>
       <div><dt>Prüfmaßstab</dt><dd>${escapeHtml(SCOPE_ONE_LINER_DE)}</dd></div>
     </dl>`;
@@ -178,6 +198,6 @@ export function renderRegressionReportHtml(
   const extraCss = `.draft { border-left-color: var(--critical-fg); background: var(--critical-bg); }`;
 
   const html = renderDocument({ title, headerHtml, mainHtml, footerHtml, extraCss });
-  assertNoLegalClaims(html, 'Der Überwachungsbericht');
+  assertNoLegalClaims(html, 'Der Überwachungsbericht', { quotesEvidence: true });
   return html;
 }

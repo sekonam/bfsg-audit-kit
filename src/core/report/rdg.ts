@@ -69,11 +69,39 @@ export function findLegalClaims(text: string): { text: string; why: string }[] {
 }
 
 /**
+ * Remove quoted third-party evidence before checking a report.
+ *
+ * The guard must police what THIS codebase says, not what a shop's own markup
+ * happens to contain. A perfectly ordinary German footer link —
+ * `<a href="/haftung">Haftung</a>` — appears verbatim in a finding's snippet,
+ * and checking the raw HTML made such a shop unreportable: `bfsg scan` exited 1
+ * with no report and no obvious remedy.
+ *
+ * Quoted evidence is exactly the content inside `<code>` (snippets, selectors,
+ * skipped URLs) and `<figcaption>` (the URL under a screenshot), so those are
+ * stripped before the check.
+ */
+export function stripQuotedEvidence(html: string): string {
+  return html
+    .replace(/<code\b[^>]*>[\s\S]*?<\/code>/gi, '<code></code>')
+    .replace(/<figcaption\b[^>]*>[\s\S]*?<\/figcaption>/gi, '<figcaption></figcaption>');
+}
+
+/**
  * Throw if the document asserts legal consequences or legal compliance.
  * Called by every generator; there is no flag to disable it.
+ *
+ * `quotesEvidence` opts into stripping quoted third-party markup first — set
+ * for the audit and monitoring reports, which embed a shop's own HTML, and NOT
+ * for the Barrierefreiheitserklärung, where every word is authored.
  */
-export function assertNoLegalClaims(text: string, context = 'Das Dokument'): void {
-  const matches = findLegalClaims(text);
+export function assertNoLegalClaims(
+  text: string,
+  context = 'Das Dokument',
+  options: { quotesEvidence?: boolean } = {},
+): void {
+  const subject = options.quotesEvidence ? stripQuotedEvidence(text) : text;
+  const matches = findLegalClaims(subject);
   if (matches.length > 0) throw new RdgBoundaryError(matches, context);
 }
 

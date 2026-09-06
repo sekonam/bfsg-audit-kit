@@ -1,4 +1,5 @@
 import { z } from 'zod';
+import { isHttpUrl } from '../report/format.ts';
 
 /**
  * Answers required to produce a Barrierefreiheitserklärung (accessibility
@@ -36,7 +37,29 @@ const filled = (label: string) =>
 /** A required, non-placeholder string that must also be a valid e-mail / URL. */
 const filledEmail = (label: string) =>
   filled(label).pipe(z.string().email('Keine gültige E-Mail-Adresse'));
-const filledUrl = (label: string) => filled(label).pipe(z.string().url('Keine gültige URL'));
+
+/**
+ * A required http(s) URL.
+ *
+ * zod's `.url()` alone is not enough: `javascript:alert(1)` and
+ * `data:text/html,…` are valid URLs and would land in an `href` of a document
+ * published on the customer's site. The scheme is allow-listed here and again
+ * at render time.
+ */
+const filledUrl = (label: string) =>
+  filled(label).pipe(
+    z
+      .string()
+      .url('Keine gültige URL')
+      .refine(isHttpUrl, { message: `${label} muss mit http:// oder https:// beginnen` }),
+  );
+
+/** Optional phone number: digits and dialling punctuation only. */
+const phone = z
+  .string()
+  .trim()
+  .regex(/^[0-9+()\-.\s]+$/, 'Telefonnummer enthält unzulässige Zeichen')
+  .optional();
 
 const isoDate = z
   .string()
@@ -54,7 +77,7 @@ export const ProviderSchema = z.object({
   legalForm: z.string().trim().optional(),
   address: AddressSchema,
   email: filledEmail('E-Mail-Adresse des Anbieters'),
-  phone: z.string().trim().optional(),
+  phone,
   website: filledUrl('Website'),
 });
 
@@ -92,8 +115,13 @@ export const ConformanceSchema = z.object({
 export const FeedbackSchema = z.object({
   contactName: z.string().trim().optional(),
   email: filledEmail('Kontakt-E-Mail für Barrieremeldungen'),
-  phone: z.string().trim().optional(),
-  formUrl: z.string().trim().url('Keine gültige URL').optional(),
+  phone,
+  formUrl: z
+    .string()
+    .trim()
+    .url('Keine gültige URL')
+    .refine(isHttpUrl, { message: 'Kontaktformular muss mit http:// oder https:// beginnen' })
+    .optional(),
   responseTimeDays: z.number().int().positive().default(14),
 });
 
@@ -101,7 +129,7 @@ export const AuthoritySchema = z.object({
   name: filled('Name der Marktüberwachungsbehörde'),
   address: AddressSchema,
   email: z.string().trim().email('Keine gültige E-Mail-Adresse').optional(),
-  phone: z.string().trim().optional(),
+  phone,
   url: filledUrl('Website der Marktüberwachungsbehörde'),
   /**
    * When the operator last checked these details against the authority's own

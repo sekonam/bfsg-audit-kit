@@ -1,4 +1,4 @@
-import { escapeHtml, formatDateDe } from '../report/format.ts';
+import { escapeHtml, formatDateDe, safeHref, safeTel } from '../report/format.ts';
 import { renderDocument } from '../report/shell.ts';
 import { assertNoLegalClaims } from '../report/rdg.ts';
 import { statementWarnings, type StatementAnswers } from './model.ts';
@@ -99,13 +99,13 @@ export function renderStatementHtml(
 
     <h2 id="${STATEMENT_SECTIONS.scope}">Geltungsbereich</h2>
     <p>Diese Erklärung gilt für die Dienstleistung „${escapeHtml(answers.service.name)}“,
-    erreichbar unter <a href="${escapeHtml(answers.service.url)}">${escapeHtml(answers.service.url)}</a>.</p>
+    erreichbar unter <a href="${escapeHtml(safeHref(answers.service.url))}">${escapeHtml(answers.service.url)}</a>.</p>
     <p>Anbieter:</p>
     <address>
       ${escapeHtml(answers.provider.name)}${answers.provider.legalForm ? ` (${escapeHtml(answers.provider.legalForm)})` : ''}<br />
       ${addressBlock(answers.provider.address)}<br />
       E-Mail: <a href="mailto:${escapeHtml(answers.provider.email)}">${escapeHtml(answers.provider.email)}</a>
-      ${answers.provider.phone ? `<br />Telefon: <a href="tel:${escapeHtml(answers.provider.phone.replace(/\s/g, ''))}">${escapeHtml(answers.provider.phone)}</a>` : ''}
+      ${answers.provider.phone ? `<br />Telefon: <a href="tel:${escapeHtml(safeTel(answers.provider.phone).replace(/[^0-9+]/g, ''))}">${escapeHtml(answers.provider.phone)}</a>` : ''}
     </address>
 
     <h2 id="${STATEMENT_SECTIONS.requirements}">Angewandte Barrierefreiheitsanforderungen</h2>
@@ -136,8 +136,8 @@ export function renderStatementHtml(
     <ul>
       ${answers.feedback.contactName ? `<li>Ansprechpartner: ${escapeHtml(answers.feedback.contactName)}</li>` : ''}
       <li>E-Mail: <a href="mailto:${escapeHtml(answers.feedback.email)}">${escapeHtml(answers.feedback.email)}</a></li>
-      ${answers.feedback.phone ? `<li>Telefon: <a href="tel:${escapeHtml(answers.feedback.phone.replace(/\s/g, ''))}">${escapeHtml(answers.feedback.phone)}</a></li>` : ''}
-      ${answers.feedback.formUrl ? `<li>Kontaktformular: <a href="${escapeHtml(answers.feedback.formUrl)}">${escapeHtml(answers.feedback.formUrl)}</a></li>` : ''}
+      ${answers.feedback.phone ? `<li>Telefon: <a href="tel:${escapeHtml(safeTel(answers.feedback.phone).replace(/[^0-9+]/g, ''))}">${escapeHtml(answers.feedback.phone)}</a></li>` : ''}
+      ${answers.feedback.formUrl ? `<li>Kontaktformular: <a href="${escapeHtml(safeHref(answers.feedback.formUrl))}">${escapeHtml(answers.feedback.formUrl)}</a></li>` : ''}
     </ul>
 
     <h2 id="${STATEMENT_SECTIONS.authority}">Marktüberwachungsbehörde</h2>
@@ -147,8 +147,8 @@ export function renderStatementHtml(
       ${escapeHtml(answers.authority.name)}<br />
       ${addressBlock(answers.authority.address)}<br />
       ${answers.authority.email ? `E-Mail: <a href="mailto:${escapeHtml(answers.authority.email)}">${escapeHtml(answers.authority.email)}</a><br />` : ''}
-      ${answers.authority.phone ? `Telefon: <a href="tel:${escapeHtml(answers.authority.phone.replace(/\s/g, ''))}">${escapeHtml(answers.authority.phone)}</a><br />` : ''}
-      Web: <a href="${escapeHtml(answers.authority.url)}">${escapeHtml(answers.authority.url)}</a>
+      ${answers.authority.phone ? `Telefon: <a href="tel:${escapeHtml(safeTel(answers.authority.phone).replace(/[^0-9+]/g, ''))}">${escapeHtml(answers.authority.phone)}</a><br />` : ''}
+      Web: <a href="${escapeHtml(safeHref(answers.authority.url))}">${escapeHtml(answers.authority.url)}</a>
     </address>
     <p class="muted">Angaben zur Behörde zuletzt geprüft am ${escapeHtml(formatDateDe(answers.authority.verifiedOn))}.</p>
 

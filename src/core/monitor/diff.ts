@@ -49,8 +49,10 @@ export interface ScanDiff {
   readonly pagesRemoved: readonly string[];
   /**
    * True when something got worse: a new finding, more occurrences of an
-   * existing one, or a lower conformance score. This is the flag the Care
-   * retainer acts on.
+   * existing one, a lower conformance score, or a critical journey that was
+   * clean and now is not. The last case matters on its own — a theme update
+   * that moves an existing critical defect onto the checkout changes no count
+   * and no score, and is exactly the event the Care retainer exists to catch.
    */
   readonly hasRegression: boolean;
 }
@@ -111,6 +113,9 @@ export function diffScans(baseline: ScanResult, current: ScanResult): ScanDiff {
   const newFindings = deltas.filter((d) => d.kind === 'neu');
   const worsened = deltas.filter((d) => d.kind === 'zugenommen');
   const conformanceDelta = current.score.conformance - baseline.score.conformance;
+  const journeysNewlyAffected = CRITICAL_JOURNEYS.filter(
+    (j) => journeysAfter.has(j) && !journeysBefore.has(j),
+  );
 
   const baselineUrls = new Set(baseline.crawl.pages.map((p) => p.url));
   const currentUrls = new Set(current.crawl.pages.map((p) => p.url));
@@ -127,14 +132,16 @@ export function diffScans(baseline: ScanResult, current: ScanResult): ScanDiff {
     resolvedFindings: deltas.filter((d) => d.kind === 'behoben'),
     worsened,
     improved: deltas.filter((d) => d.kind === 'abgenommen'),
-    journeysNewlyAffected: CRITICAL_JOURNEYS.filter(
-      (j) => journeysAfter.has(j) && !journeysBefore.has(j),
-    ),
+    journeysNewlyAffected,
     journeysNowClean: CRITICAL_JOURNEYS.filter(
       (j) => journeysBefore.has(j) && !journeysAfter.has(j),
     ),
     pagesAdded: [...currentUrls].filter((u) => !baselineUrls.has(u)),
     pagesRemoved: [...baselineUrls].filter((u) => !currentUrls.has(u)),
-    hasRegression: newFindings.length > 0 || worsened.length > 0 || conformanceDelta < 0,
+    hasRegression:
+      newFindings.length > 0 ||
+      worsened.length > 0 ||
+      conformanceDelta < 0 ||
+      journeysNewlyAffected.length > 0,
   };
 }

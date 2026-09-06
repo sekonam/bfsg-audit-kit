@@ -183,3 +183,36 @@ describe('renderStatementHtml', () => {
     expect(() => renderStatementHtml(answers)).toThrow(RdgBoundaryError);
   });
 });
+
+describe('statement URL and phone safety — findings from review', () => {
+  it('rejects a javascript: URL, which zod .url() accepts as valid', () => {
+    for (const field of ['service.url', 'authority.url', 'provider.website'] as const) {
+      const input = sampleStatementInput() as any;
+      const [group, key] = field.split('.') as [string, string];
+      input[group][key] = 'javascript:alert(document.domain)';
+      expect(() => parseStatementAnswers(input), field).toThrow(/http:\/\/ oder https:\/\//);
+    }
+  });
+
+  it('rejects a data: URL in the feedback form link', () => {
+    const input = sampleStatementInput() as any;
+    input.feedback.formUrl = 'data:text/html,<script>alert(1)</script>';
+    expect(() => parseStatementAnswers(input)).toThrow(/http:\/\/ oder https:\/\//);
+  });
+
+  it('rejects a phone number carrying anything but dialling characters', () => {
+    const input = sampleStatementInput() as any;
+    input.provider.phone = 'javascript:alert(1)';
+    expect(() => parseStatementAnswers(input)).toThrow(/unzulässige Zeichen/);
+  });
+
+  it('emits no javascript: href even if a value slipped past validation', () => {
+    // Defence in depth: the renderer sanitises the scheme independently of the
+    // schema, because the document is published under the customer's origin.
+    const answers = sampleStatement();
+    answers.service = { ...answers.service, url: 'javascript:alert(1)' };
+    const { html } = renderStatementHtml(answers);
+    expect(html).not.toMatch(/href="javascript:/i);
+    expect(html).toMatch(/href="#"/);
+  });
+});

@@ -101,8 +101,25 @@ describe('scoreScan', () => {
     ]);
     const withoutBestPractice = scoreScan([finding('label', 'critical', ['checkout'])]);
     expect(withBestPractice.conformance).toBe(withoutBestPractice.conformance);
-    // …but they are still reported.
-    expect(withBestPractice.totalFindings).toBe(2);
+
+    // …and they are counted separately, never folded into the headline number.
+    // Mixing them in put a "5 Fundstellen" scorecard above a severity table
+    // summing to 2 in the same report.
+    expect(withBestPractice.totalFindings).toBe(1);
+    expect(withBestPractice.bestPracticeFindings).toBe(1);
+    expect(withBestPractice.bestPracticeInstances).toBe(1);
+  });
+
+  it('keeps the headline counts consistent with the severity breakdown', () => {
+    const score = scoreScan([
+      finding('label', 'critical', ['checkout', 'cart']),
+      finding('landmark-one-main', 'moderate', ['home', 'product', 'category'], { criteria: [] }),
+    ]);
+    const breakdownFindings = score.bySeverity.reduce((n, b) => n + b.findings, 0);
+    const breakdownInstances = score.bySeverity.reduce((n, b) => n + b.instances, 0);
+    expect(score.totalFindings).toBe(breakdownFindings);
+    expect(score.totalInstances).toBe(breakdownInstances);
+    expect(score.bestPracticeInstances).toBe(3);
   });
 
   it('collects failed criteria de-duplicated and numerically sorted', () => {

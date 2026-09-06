@@ -96,6 +96,64 @@ describe('diffScans', () => {
     expect(diff.worsened[0]!.after).toBe(4);
   });
 
+  it('treats a critical defect moving onto the checkout as a regression', () => {
+    // Same rule, same severity, same occurrence count, same score — only the
+    // journey changed. This is precisely the theme-update failure the Care
+    // retainer exists to catch, and it used to report "no deterioration".
+    const moved = sampleFindings().map((f) =>
+      f.ruleId === 'label'
+        ? {
+            ...f,
+            instances: [
+              {
+                url: 'https://muster-shop.de/kasse',
+                journey: 'checkout' as const,
+                selector: '#e',
+                snippet: '<input>',
+              },
+              {
+                url: 'https://muster-shop.de/kasse2',
+                journey: 'checkout' as const,
+                selector: '#f',
+                snippet: '<input>',
+              },
+            ],
+          }
+        : f,
+    );
+    const cleanCheckout = withFindings(
+      baseline,
+      sampleFindings().map((f) =>
+        f.ruleId === 'label'
+          ? {
+              ...f,
+              instances: [
+                {
+                  url: 'https://muster-shop.de/',
+                  journey: 'home' as const,
+                  selector: '#a',
+                  snippet: '<input>',
+                },
+                {
+                  url: 'https://muster-shop.de/x',
+                  journey: 'home' as const,
+                  selector: '#b',
+                  snippet: '<input>',
+                },
+              ],
+            }
+          : f,
+      ),
+      '2026-09-06T08:00:00Z',
+    );
+    const diff = diffScans(cleanCheckout, withFindings(baseline, moved, '2026-10-06T08:00:00Z'));
+    expect(diff.conformanceDelta).toBe(0);
+    expect(diff.newFindings).toEqual([]);
+    expect(diff.worsened).toEqual([]);
+    expect(diff.journeysNewlyAffected).toContain('checkout');
+    expect(diff.hasRegression).toBe(true);
+  });
+
   it('identifies a defect on a different page as a moved occurrence, not a new defect', () => {
     const findings = sampleFindings().map((f) =>
       f.ruleId === 'link-name'

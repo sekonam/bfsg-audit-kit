@@ -47,6 +47,18 @@ export async function scanShop(startUrl: string, options: ScanOptions): Promise<
 
   const limiter = new HostRateLimiter(options.policy.minRequestIntervalMs);
   const devtoolsPort = wantLighthouse ? await freePort() : undefined;
+
+  // Lighthouse loads each critical journey a second time, and those loads are
+  // requests the shop receives just like the crawl's. The documented cap is a
+  // cap on page loads per shop, so the crawl budget is reduced to make room
+  // rather than the Lighthouse runs being free. Lowering a limit is always
+  // more polite, so it needs no override.
+  const lighthouseBudget = wantLighthouse ? CRITICAL_JOURNEYS.length : 0;
+  const crawlPolicy: CrawlPolicy = {
+    ...options.policy,
+    maxPagesPerShop: Math.max(1, options.policy.maxPagesPerShop - lighthouseBudget),
+  };
+
   const session = await PlaywrightSession.launch(options.policy, {
     devtoolsPort,
     runAxe: true,
@@ -54,11 +66,12 @@ export async function scanShop(startUrl: string, options: ScanOptions): Promise<
   });
 
   try {
-    const crawl = await crawlShop(startUrl, options.policy, {
+    const crawl = await crawlShop(startUrl, crawlPolicy, {
       fetcher: session,
       fetchText,
       limiter,
       log,
+      setNavigationGuard: (guard) => session.setNavigationGuard(guard),
     });
 
     const axePages: PageAxeResult[] = [];
@@ -86,7 +99,7 @@ export async function scanShop(startUrl: string, options: ScanOptions): Promise<
       const host = new URL(crawl.origin).host;
       for (const target of targets) {
         await limiter.acquire(host);
-        const result = await runLighthouse(target.url, devtoolsPort);
+        const result = await runLighthouse(target.url, devtoolsPort, options.policy.userAgent);
         if (result.error) {
           warnings.push(`Lighthouse für ${target.url} fehlgeschlagen: ${result.error}`);
           continue;

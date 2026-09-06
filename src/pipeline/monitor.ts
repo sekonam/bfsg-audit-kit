@@ -7,6 +7,7 @@ import {
   type RegressionReportOptions,
 } from '../core/monitor/report.ts';
 import { SCAN_JSON } from './report.ts';
+import { ScanFileError, validateScanResult } from './load-scan.ts';
 
 /**
  * Monitoring output. NOTE: nothing here sends anything.
@@ -28,13 +29,22 @@ export interface MonitorOutput {
   readonly diffPath: string;
 }
 
+/**
+ * The baseline to compare against: an explicit `baseline.json` if one was set,
+ * otherwise the last scan. Both missing is a normal first-run situation and
+ * gets a German message naming the fix, not an unhandled rejection.
+ */
 export async function readBaseline(outDir: string): Promise<ScanResult> {
-  const raw = await readFile(join(outDir, BASELINE_JSON), 'utf8').catch(async (error) => {
-    // Fall back to the last scan, which is what a first monitoring run has.
-    if ((error as NodeJS.ErrnoException).code !== 'ENOENT') throw error;
-    return readFile(join(outDir, SCAN_JSON), 'utf8');
-  });
-  return JSON.parse(raw) as ScanResult;
+  for (const name of [BASELINE_JSON, SCAN_JSON]) {
+    try {
+      return validateScanResult(JSON.parse(await readFile(join(outDir, name), 'utf8')), name);
+    } catch (error) {
+      if ((error as NodeJS.ErrnoException).code !== 'ENOENT') throw error;
+    }
+  }
+  throw new ScanFileError(outDir, [
+    `Weder ${BASELINE_JSON} noch ${SCAN_JSON} gefunden. Zuerst "bfsg scan" ausführen und dann "bfsg baseline" setzen.`,
+  ]);
 }
 
 export async function writeBaseline(outDir: string, scan: ScanResult): Promise<string> {

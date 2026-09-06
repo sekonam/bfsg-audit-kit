@@ -23,16 +23,36 @@ const MIME: Record<string, string> = {
 export interface FixtureServer {
   readonly origin: string;
   readonly requests: string[];
+  /** Every request, with the User-Agent it carried. */
+  readonly requestLog: { path: string; userAgent: string }[];
   close(): Promise<void>;
 }
+
+/**
+ * Paths that redirect, so the crawler's handling of redirects can be tested.
+ * `/weiterleitung` lands on a page robots.txt forbids — the crawler must not
+ * follow it there.
+ */
+const REDIRECTS: Record<string, string> = {
+  '/weiterleitung': '/intern/geheim.html',
+  '/umleitung-ok': '/ueber-uns.html',
+};
 
 export async function startFixtureServer(rootDir: string): Promise<FixtureServer> {
   const root = resolve(rootDir);
   const requests: string[] = [];
+  const requestLog: { path: string; userAgent: string }[] = [];
 
   const server: Server = createServer(async (req, res) => {
     const url = new URL(req.url ?? '/', 'http://localhost');
     requests.push(url.pathname);
+    requestLog.push({ path: url.pathname, userAgent: req.headers['user-agent'] ?? '' });
+
+    const redirectTo = REDIRECTS[url.pathname];
+    if (redirectTo) {
+      res.writeHead(302, { Location: redirectTo }).end();
+      return;
+    }
 
     // Path traversal guard: fixtures only.
     const candidate = resolve(join(root, normalize(url.pathname)));
@@ -71,6 +91,7 @@ export async function startFixtureServer(rootDir: string): Promise<FixtureServer
   return {
     origin: `http://127.0.0.1:${address.port}`,
     requests,
+    requestLog,
     close: () =>
       new Promise<void>((resolveClose, rejectClose) =>
         server.close((error) => (error ? rejectClose(error) : resolveClose())),

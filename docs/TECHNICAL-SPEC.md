@@ -30,12 +30,36 @@ The split is load-bearing for testability: **everything that decides anything li
    ties, `*` and `$` are supported, `Crawl-delay` is honoured.
    **A 4xx means "no robots.txt, everything allowed". A 5xx or a network failure means DENY ALL** —
    a server we cannot ask is a server we do not crawl.
+
+   Four details that are easy to get wrong and were all found wrong in review:
+   group specificity is measured by the agent token that _matched_, not by the longest token
+   the group happens to list; paths are matched in both their percent-encoded and decoded
+   spellings, because a German shop writes `Disallow: /über-uns` and a URL's `pathname` is
+   `/%C3%BCber-uns`; only `Allow`/`Disallow`/`Crawl-delay` end a group, so a `Sitemap:` or
+   `Host:` line neither splits one group nor merges two; and an empty `User-agent:` value is
+   ignored rather than becoming a catch-all that outranks `*`.
+
+   Rules are cached **per host**, not per crawl: `isSameSite` treats `shop.de` and
+   `www.shop.de` as one site, and applying one host's rules to the other would be wrong in
+   both directions.
+
 2. **Page budget** — 20 per shop by default, decremented before the request is issued.
 3. **Rate limit** (`src/core/crawl/rate-limit.ts`) — per host, 2000 ms. The limiter reserves its
    slot _before_ awaiting, so concurrent callers queue at 2 s spacing instead of racing. A site's
    own `Crawl-delay` can slow us down; it can never speed us up.
 
-There is no code path through `src/pipeline/crawl.ts` that skips these.
+There is no code path through `src/pipeline/crawl.ts` that skips these, and the budget gate is
+enforced in exactly one place so that an exhausted budget is always _recorded_ rather than
+silently ending a loop.
+
+**Redirects are the subtle part.** `page.goto` follows them, so a check performed before the
+fetch only ever sees the URL we asked for: a shop redirecting `/produkte` to `/intern/geheim`
+would get its forbidden page fetched, scanned and printed. Playwright's route handler is _not_
+re-invoked for a redirect target (verified against 1.54), so the session resolves the chain
+itself with `route.fetch({ maxRedirects: 0 })` and re-runs the gate before every hop. A hop the
+gate rejects is never requested at all, and a redirect leaving the site is refused the same way.
+The URL that was actually rendered is what the DOM signature, the journey, the link base and the
+report all use — a report naming a URL nobody scanned is worse than no report.
 
 ### 2.2 Politeness policy as a type
 
@@ -81,6 +105,13 @@ rate limiter. Its failures are non-fatal and are surfaced as warnings — a scan
 Lighthouse still produces a report, and the report says the score is unavailable rather than
 pretending it was 100.
 
+Two things Lighthouse does not get to do. It does not get free requests: its page loads are
+loads the shop receives, so the crawl budget is reduced by five to make room and the documented
+cap stays a cap on _page loads per shop_. And it does not get to be anonymous: left alone it
+emulates mobile Chrome and overrides the context User-Agent over CDP, which would mean a quarter
+of our requests carried no contact address — so `emulatedUserAgent` is set explicitly. A test
+asserts every request the fixture server receives, Lighthouse's included, carries the bot UA.
+
 ### 3.1 Normalisation
 
 `src/core/findings/normalize.ts` merges per-page engine output into per-shop findings:
@@ -120,6 +151,11 @@ shop lands in the 50–89 band rather than near zero.
 **It is a prioritisation heuristic, not a conformance measure, and every report says so in those
 words.** A shop scoring 100 has passed the ~57% a machine can check.
 
+`totalFindings`/`totalInstances` count **only** the conformance-mapped findings, and
+best-practice ones are reported separately in `bestPracticeFindings`/`bestPracticeInstances`.
+Mixing them put a headline "5 Fundstellen" above a severity table summing to 2 on the same page
+of a customer's report.
+
 **`prospect` (0–100), internal only.** A good prospect is not the worst shop:
 
 ```
@@ -147,6 +183,19 @@ inline stylesheet with documented contrast ratios, and print rules. **Everything
 documents are handed over as single files and must render offline, as an attachment and in the
 PDF printer. There is no JavaScript and no external request.
 
+### 5.0 URL safety
+
+`escapeHtml` stops an attribute breakout but does nothing about the **scheme**, and the scheme is
+the payload: `javascript:alert(1)` survives escaping untouched, and zod's `.url()` accepts it as
+a valid URL. Every value that lands in an `href`/`src` goes through `safeHref`, which renders
+anything but http(s) inert, and the statement schema allow-lists the scheme independently. Phone
+numbers are reduced to dialling characters. This matters because these documents are published on
+the customer's site, under the customer's origin.
+
+Stored scans get the same treatment as statement answers: `loadScanResult` validates the
+structure the renderers depend on instead of casting `JSON.parse` output to `ScanResult`. A
+scan.json can arrive from a colleague, from an older version, or hand-edited.
+
 ### 5.1 The RDG check is a code path
 
 `src/core/report/rdg.ts` holds a list of forbidden patterns in **both directions** — threats
@@ -154,6 +203,13 @@ PDF printer. There is no JavaScript and no external request.
 `gesetzeskonform`, `BFSG-konform`). `assertNoLegalClaims()` runs over every finished document and
 throws `RdgBoundaryError`. There is no flag to disable it, and it catches operator-supplied text
 as well as our own.
+
+It polices what this codebase **says**, not what a shop's markup happens to contain. The audit
+and monitoring reports quote third-party HTML — an ordinary German footer link
+`<a href="/haftung">Haftung</a>` appears verbatim in a finding snippet — so quoted evidence
+(`<code>`, `<figcaption>`) is stripped before the check. Without that, such a shop was simply
+unreportable: the scan exited 1 with no output and no obvious remedy. The
+Barrierefreiheitserklärung quotes nothing and is checked whole.
 
 ### 5.2 Report
 

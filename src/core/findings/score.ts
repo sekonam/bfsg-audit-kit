@@ -1,7 +1,7 @@
 import type { Finding, Journey, ScanScore, ScoreBreakdown, Severity } from '../types.ts';
 import { CRITICAL_JOURNEYS, SEVERITY_ORDER } from '../types.ts';
 import { compareCriteria } from '../wcag/catalog.ts';
-import { conformanceFindings } from './normalize.ts';
+import { bestPracticeFindings, conformanceFindings } from './normalize.ts';
 
 /**
  * Scoring model.
@@ -120,6 +120,7 @@ export function prospectScore(
  */
 export function scoreScan(findings: readonly Finding[]): ScanScore {
   const counted = conformanceFindings(findings);
+  const bestPractice = bestPracticeFindings(findings);
   const penalty = counted.reduce((sum, f) => sum + penaltyOf(f), 0);
   const conformance = Math.round(100 * Math.exp(-penalty / DECAY));
 
@@ -142,8 +143,13 @@ export function scoreScan(findings: readonly Finding[]): ScanScore {
     penalty: Math.round(penalty * 100) / 100,
     conformance,
     prospect: prospectScore(conformance, journeys.length, mechanicalShare),
-    totalFindings: findings.length,
-    totalInstances: findings.reduce((n, f) => n + f.instances.length, 0),
+    // Counted findings only. Mixing all findings into the headline while the
+    // severity table below it summed only the counted ones put two
+    // irreconcilable numbers on the same page of the customer's report.
+    totalFindings: counted.length,
+    totalInstances: counted.reduce((n, f) => n + f.instances.length, 0),
+    bestPracticeFindings: bestPractice.length,
+    bestPracticeInstances: bestPractice.reduce((n, f) => n + f.instances.length, 0),
     failedCriteria,
     criticalJourneysAffected: journeys,
     bySeverity,

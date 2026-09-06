@@ -106,6 +106,11 @@ function draftFromAxe(violation: RawAxeViolation): Draft {
   };
 }
 
+/** True when a draft carries real German copy rather than the [EN] fallback. */
+function isTranslated(draft: Draft): boolean {
+  return !draft.titleDe.startsWith('[EN] ');
+}
+
 function mergeInto(map: Map<string, Draft>, draft: Draft, instances: FindingInstance[]): void {
   const existing = map.get(draft.ruleId);
   if (!existing) {
@@ -121,6 +126,19 @@ function mergeInto(map: Map<string, Draft>, draft: Draft, instances: FindingInst
     if (!existing.criteria.includes(c)) existing.criteria.push(c);
   }
   existing.criteria.sort(compareCriteria);
+
+  // Copy was previously frozen at whatever the FIRST occurrence carried. A rule
+  // first seen without a catalogue entry then kept the "[EN] …" fallback for the
+  // whole report even when a later occurrence had proper German text.
+  if (!isTranslated(existing) && isTranslated(draft)) {
+    existing.source = draft.source;
+    existing.titleDe = draft.titleDe;
+    existing.descriptionDe = draft.descriptionDe;
+    existing.remediationDe = draft.remediationDe;
+    existing.mechanicallyFixable = draft.mechanicallyFixable;
+  }
+  // A Lighthouse-first rule would otherwise lose axe's documentation link.
+  if (!existing.helpUrl && draft.helpUrl) existing.helpUrl = draft.helpUrl;
 }
 
 function severityRank(s: Severity): number {
@@ -158,9 +176,15 @@ export function normalizeFindings(
     }
   }
 
+  // Accumulate rather than overwrite: two PageAxeResults for one URL (a shop
+  // that serves the same URL twice, or a caller that splits results) would
+  // otherwise leave only the last one's rule ids guarding against Lighthouse
+  // double-counting.
   const axeRuleIdsByUrl = new Map<string, Set<string>>();
   for (const page of axePages) {
-    axeRuleIdsByUrl.set(page.url, new Set(page.violations.map((v) => v.id)));
+    const seen = axeRuleIdsByUrl.get(page.url) ?? new Set<string>();
+    for (const violation of page.violations) seen.add(violation.id);
+    axeRuleIdsByUrl.set(page.url, seen);
   }
 
   for (const page of lighthousePages) {

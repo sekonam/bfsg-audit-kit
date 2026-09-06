@@ -10,6 +10,44 @@ export function escapeHtml(value: unknown): string {
     .replace(/'/g, '&#39;');
 }
 
+/**
+ * Make a value safe to put in an `href`/`src` attribute.
+ *
+ * `escapeHtml` stops an attribute breakout but does nothing about the SCHEME,
+ * and the scheme is the payload: `javascript:alert(1)` survives escaping
+ * untouched. zod's `.url()` accepts it too, because it is a valid URL. These
+ * documents are published on a customer's site under the customer's origin, so
+ * anything that is not http(s) is refused and rendered inert.
+ */
+export function safeHref(value: string): string {
+  try {
+    const parsed = new URL(value);
+    if (parsed.protocol === 'http:' || parsed.protocol === 'https:') return parsed.toString();
+  } catch {
+    /* not an absolute URL */
+  }
+  return '#';
+}
+
+/** True when a string is an absolute http(s) URL. Used by input validation. */
+export function isHttpUrl(value: string): boolean {
+  try {
+    const parsed = new URL(value);
+    return parsed.protocol === 'http:' || parsed.protocol === 'https:';
+  } catch {
+    return false;
+  }
+}
+
+/**
+ * Reduce a phone number to the characters a `tel:` URI may contain. Anything
+ * else is dropped rather than escaped, so no operator typo can produce a
+ * surprising scheme.
+ */
+export function safeTel(value: string): string {
+  return value.replace(/[^0-9+()\-.\s]/g, '').trim();
+}
+
 /** German date, e.g. "5. September 2026". */
 export function formatDateDe(iso: string): string {
   const date = new Date(iso);

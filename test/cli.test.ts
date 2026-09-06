@@ -1,7 +1,7 @@
 import { afterAll, beforeAll, describe, expect, it } from 'vitest';
 import { execFile } from 'node:child_process';
 import { promisify } from 'node:util';
-import { mkdtemp, rm, stat } from 'node:fs/promises';
+import { mkdir, mkdtemp, rm, stat, writeFile } from 'node:fs/promises';
 import { dirname, join } from 'node:path';
 import { fileURLToPath } from 'node:url';
 import { tmpdir } from 'node:os';
@@ -89,7 +89,6 @@ describe('bfsg scan → report → baseline → monitor → rank', () => {
       '--out',
       join(outDir, 'muster'),
       '--no-lighthouse',
-      '--report',
     ]);
     expect(result.stderr, result.stderr).not.toContain('Error');
     expect(result.code).toBe(0);
@@ -125,6 +124,26 @@ describe('bfsg scan → report → baseline → monitor → rank', () => {
     expect(result.code).toBe(0);
     expect(result.stdout).toContain('Prospect');
     expect(result.stdout).toMatch(/127\.0\.0\.1|muster/);
+  });
+});
+
+describe('bfsg report and monitor guard their inputs', () => {
+  it('rejects a scan.json that is not a scan result, instead of rendering it', async () => {
+    const bad = join(outDir, 'kaputt.json');
+    await writeFile(bad, JSON.stringify({ hello: 'world' }), 'utf8');
+    const result = await cli(['report', bad, '--out', outDir]);
+    expect(result.code).toBe(1);
+    expect(result.stderr).toContain('ScanFileError');
+    expect(result.stderr).toContain('origin fehlt');
+  });
+
+  it('explains what to do when there is no baseline yet', async () => {
+    const empty = join(outDir, 'leer');
+    await mkdir(empty, { recursive: true });
+    const result = await cli(['monitor', server.origin, '--out', empty, '--no-lighthouse']);
+    expect(result.code).toBe(1);
+    expect(result.stderr).toContain('ScanFileError');
+    expect(result.stderr).toContain('bfsg scan');
   });
 });
 

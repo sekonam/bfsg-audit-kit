@@ -36,6 +36,19 @@ Status as of the initial build. Every "done" below is backed by a test or a file
 | **PDF, video-caption or third-party-embed auditing**               | Out of scope on every quote, so out of scope in the tool.                                                                                                                                                             |
 | **A hosted per-shop report URL**                                   | The spec asks for a per-shop path; the tool writes a per-shop directory. Publishing it needs a domain and a server, which are operator decisions, not code.                                                           |
 
+## Reviewed
+
+The whole tree went through an independent correctness review after the first build. It
+reproduced and fixed, among others: redirects bypassing robots.txt; robots group selection
+picking a group matched only by a short prefix; percent-encoded paths never matching umlaut
+`Disallow` rules; Lighthouse escaping the page budget and dropping the bot User-Agent;
+`javascript:` URLs passing zod's `.url()` into an `href`; a headline occurrence count that
+contradicted the table beneath it; a critical defect moving onto the checkout not counting as a
+regression; and the RDG guard making a shop unreportable because its footer said "Haftung".
+Each fix has a regression test that names the scenario. Six tests that asserted less than their
+names claimed were tightened — including one that claimed to verify the bot User-Agent and
+verified nothing of the sort.
+
 ## Known limitations, stated plainly
 
 1. **The scanner accepts a placeholder as a field label.** axe's `label` rule passes when an input
@@ -48,11 +61,14 @@ Status as of the initial build. Every "done" below is backed by a test or a file
    than derived from anything normative. It is a prioritisation aid. Every report says so.
 4. **Screenshots are of the first offending element only**, capped per page. A finding with 40
    occurrences gets one picture.
-5. **No German native speaker has reviewed the customer-facing German.** It is grammatical and
+5. **A blocked redirect still costs one request.** The first hop is fetched before the
+   `Location` header can be read; only the disallowed hop is refused. This is the minimum
+   possible and is recorded in the report's skipped list.
+6. **No German native speaker has reviewed the customer-facing German.** It is grammatical and
    uses the right terminology, but it was written by a machine.
-6. **The statement wording has not been reviewed by a lawyer**, which is why it renders as ENTWURF
+7. **The statement wording has not been reviewed by a lawyer**, which is why it renders as ENTWURF
    until a human confirms otherwise.
-7. **Nothing has been run against a real shop.** By instruction and by principle: crawling live
+8. **Nothing has been run against a real shop.** By instruction and by principle: crawling live
    German shops with no purpose is exactly the behaviour the politeness rules exist to prevent.
 
 ## Human steps before anything reaches a customer

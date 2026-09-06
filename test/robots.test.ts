@@ -133,3 +133,60 @@ describe('crawlDelayFor', () => {
     expect(crawlDelayFor(parseRobots('User-agent: *\nDisallow: /x'), UA)).toBeUndefined();
   });
 });
+
+/**
+ * Regression tests from the independent code review. Each of these reproduced a
+ * real bypass of the robots.txt rules before the fix; the scenario is named in
+ * the test so it cannot be "simplified" away later.
+ */
+describe('robots.txt — bypasses found in review', () => {
+  it('picks the group whose agent actually matched, not the group with the longest agent line', () => {
+    // The first group matches only via the 4-character prefix "bfsg" but also
+    // carries a very long unrelated agent token. That token must not make the
+    // group look more specific than the group naming our bot exactly.
+    const rules = parseRobots(
+      [
+        'User-agent: bfsg',
+        'User-agent: aaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaa',
+        'Disallow:',
+        '',
+        'User-agent: bfsgauditbot',
+        'Disallow: /',
+      ].join('\n'),
+    );
+    expect(isAllowed(rules, UA, '/geheim')).toBe(false);
+  });
+
+  it('matches percent-encoded paths against the rules a German shop actually writes', () => {
+    const rules = parseRobots('User-agent: *\nDisallow: /über-uns\nDisallow: /größen');
+    expect(isAllowed(rules, UA, '/%C3%BCber-uns')).toBe(false);
+    expect(isAllowed(rules, UA, '/gr%C3%B6%C3%9Fen/tabelle')).toBe(false);
+    expect(isAllowed(rules, UA, '/produkte')).toBe(true);
+  });
+
+  it('matches an already-decoded path too', () => {
+    const rules = parseRobots('User-agent: *\nDisallow: /über-uns');
+    expect(isAllowed(rules, UA, '/über-uns')).toBe(false);
+  });
+
+  it('does not let an unknown field split one group into two', () => {
+    // "Host:" between two user-agent lines used to end the group, leaving an
+    // empty rule set for our bot and silently discarding "Disallow: /".
+    const rules = parseRobots(
+      'User-agent: bfsgauditbot\nHost: shop.de\nUser-agent: *\nDisallow: /',
+    );
+    expect(isAllowed(rules, UA, '/x')).toBe(false);
+  });
+
+  it('does not let a Sitemap line merge two separate groups', () => {
+    const rules = parseRobots(
+      'User-agent: *\nDisallow: /\nSitemap: https://shop.de/s.xml\nUser-agent: googlebot\nDisallow:',
+    );
+    expect(isAllowed(rules, UA, '/x')).toBe(false);
+  });
+
+  it('ignores an empty User-agent value instead of treating it as a catch-all', () => {
+    const rules = parseRobots('User-agent:\nDisallow:\n\nUser-agent: *\nDisallow: /');
+    expect(isAllowed(rules, UA, '/x')).toBe(false);
+  });
+});

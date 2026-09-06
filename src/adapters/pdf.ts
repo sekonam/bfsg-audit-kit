@@ -1,5 +1,6 @@
 import { pathToFileURL } from 'node:url';
 import { chromium } from 'playwright';
+import { escapeHtml } from '../core/report/format.ts';
 
 /**
  * HTML → PDF via headless Chromium.
@@ -34,9 +35,12 @@ export async function renderPdfFromFile(
       outline: true,
       margin: { top: '18mm', bottom: '18mm', left: '16mm', right: '16mm' },
       displayHeaderFooter: true,
-      headerTemplate: `<div style="font-size:8pt;color:#5c6470;width:100%;padding:0 16mm;">${
-        options.headerText ?? ''
-      }</div>`,
+      // The only interpolation in the codebase that used to skip escapeHtml.
+      // A shop called `Müller & Söhne <GmbH>` corrupted the header on every
+      // page, and a double quote closed the style attribute outright.
+      headerTemplate: `<div style="font-size:8pt;color:#5c6470;width:100%;padding:0 16mm;">${escapeHtml(
+        options.headerText ?? '',
+      )}</div>`,
       footerTemplate:
         '<div style="font-size:8pt;color:#5c6470;width:100%;padding:0 16mm;text-align:right;">' +
         'Seite <span class="pageNumber"></span> von <span class="totalPages"></span></div>',

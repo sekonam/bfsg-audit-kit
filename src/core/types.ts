@@ -128,8 +128,16 @@ export interface ScanScore {
   readonly conformance: number;
   /** 0–100 outreach priority. Higher = better prospect for the practice. */
   readonly prospect: number;
+  /**
+   * Findings and occurrences that COUNT — i.e. those mapped to a WCAG 2.1 AA
+   * criterion. The report's headline number and the table beneath it are both
+   * derived from these, so they cannot disagree.
+   */
   readonly totalFindings: number;
   readonly totalInstances: number;
+  /** Best-practice findings, reported separately and never scored. */
+  readonly bestPracticeFindings: number;
+  readonly bestPracticeInstances: number;
   readonly failedCriteria: readonly string[];
   readonly criticalJourneysAffected: readonly Journey[];
   readonly bySeverity: readonly ScoreBreakdown[];

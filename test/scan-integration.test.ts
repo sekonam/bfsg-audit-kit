@@ -63,9 +63,28 @@ describe('crawl against the fixture shop', () => {
     expect(outcome.result.crawl.skipped.some((s) => s.reason.includes('robots.txt'))).toBe(true);
   });
 
-  it('identifies itself in the User-Agent — verified by the fixture server receiving it', () => {
-    // The policy is what the browser context was launched with.
-    expect(outcome.result.crawl.robotsRespected).toBe(true);
+  it('does not follow a redirect onto a robots-disallowed page', () => {
+    // /weiterleitung 302s to /intern/geheim.html. The redirect target must
+    // never be requested — the guard resolves the chain hop by hop, so the
+    // disallowed hop is refused instead of fetched and then discarded.
+    expect(server.requests).toContain('/weiterleitung');
+    expect(server.requests.filter((p) => p.startsWith('/intern'))).toEqual([]);
+    expect(
+      outcome.result.crawl.skipped.some((s) => s.reason.includes('Weiterleitung auf')),
+      JSON.stringify(outcome.result.crawl.skipped),
+    ).toBe(true);
+  });
+
+  it('identifies itself in the User-Agent on every single request', () => {
+    // Previously this asserted only that robots were respected, which the
+    // fixture server cannot observe. It now checks the header the shop
+    // actually receives — the whole reason a contact URL is mandatory.
+    expect(server.requestLog.length).toBeGreaterThan(5);
+    for (const entry of server.requestLog) {
+      expect(entry.userAgent, `${entry.path} carried "${entry.userAgent}"`).toMatch(
+        /^BfsgAuditBot\/[\d.]+ \(\+https:\/\/beispiel\.de\/bot\)$/,
+      );
+    }
   });
 
   it('samples each template once: the two product pages collapse to one', () => {

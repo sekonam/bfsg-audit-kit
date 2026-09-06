@@ -29,7 +29,11 @@ interface LhAuditDetailItem {
  * Run the Lighthouse accessibility category against an already-running Chrome
  * (the same browser the crawler uses), attached over CDP on `port`.
  */
-export async function runLighthouse(url: string, port: number): Promise<LighthouseRunResult> {
+export async function runLighthouse(
+  url: string,
+  port: number,
+  userAgent: string,
+): Promise<LighthouseRunResult> {
   try {
     const { default: lighthouse } = await import('lighthouse');
     const runnerResult = await lighthouse(url, {
@@ -40,6 +44,14 @@ export async function runLighthouse(url: string, port: number): Promise<Lighthou
       // The shop was already fetched by the crawler; do not re-simulate a slow
       // network, it triples the runtime for no accessibility benefit.
       throttlingMethod: 'provided',
+      // Lighthouse otherwise emulates a mobile Chrome and overrides the
+      // context User-Agent over CDP — which would mean a quarter of the
+      // requests a shop receives from us carry no contact address at all.
+      // The contact URL is the whole reason createPolicy refuses to run
+      // without one, so it has to survive here too.
+      emulatedUserAgent: userAgent,
+      formFactor: 'desktop',
+      screenEmulation: { disabled: true },
     });
 
     if (!runnerResult?.lhr) {
@@ -76,7 +88,13 @@ export async function runLighthouse(url: string, port: number): Promise<Lighthou
   }
 }
 
-/** Find a free TCP port for the Chrome DevTools endpoint. */
+/**
+ * Find a free TCP port for the Chrome DevTools endpoint.
+ *
+ * Inherently racy — the listener must be closed before Chromium can bind the
+ * port — so the caller gets a clear failure rather than a confusing
+ * Lighthouse-attach error if something else takes it in between.
+ */
 export async function freePort(): Promise<number> {
   const { createServer } = await import('node:net');
   return new Promise((resolve, reject) => {
