@@ -14,12 +14,12 @@ regressions.
 
 ## Hard constraints, enforced in code
 
-| Constraint | How it is enforced |
-|---|---|
+| Constraint                                                                  | How it is enforced                                                                                                                                       |
+| --------------------------------------------------------------------------- | -------------------------------------------------------------------------------------------------------------------------------------------------------- |
 | **Politeness** — robots.txt, 1 req / 2 s / host, identified bot, ≤ 20 pages | `src/core/crawl/policy.ts`; the crawler **refuses to start without `BFSG_CONTACT_URL`**; every non-default value must be passed explicitly and is logged |
-| **RDG boundary** — technical conformance only, never legal consequences | Scope note rendered into every report and statement; `test/report.rdg.test.ts` fails the build if forbidden phrasing appears |
-| **§ 7 Abs. 2 UWG** — no cold email to German businesses | **No email capability exists.** `scripts/guard-no-email.sh` fails CI if a mail transport is added. Outreach is telephone and post only |
-| **GDPR** | Art. 30 record and Art. 14 notice in `docs/`; the prospect store keeps a source and a collection date per record |
+| **RDG boundary** — technical conformance only, never legal consequences     | Scope note rendered into every report and statement; `test/report.rdg.test.ts` fails the build if forbidden phrasing appears                             |
+| **§ 7 Abs. 2 UWG** — no cold email to German businesses                     | **No email capability exists.** `scripts/guard-no-email.sh` fails CI if a mail transport is added. Outreach is telephone and post only                   |
+| **GDPR**                                                                    | Art. 30 record and Art. 14 notice in `docs/`; the prospect store keeps a source and a collection date per record                                         |
 
 ## Quick start
 
@@ -60,15 +60,15 @@ exist precisely to prevent that.
 
 ## Repository map
 
-| Path | Contents |
-|---|---|
-| `src/core/` | Pure logic: WCAG catalogue, normalisation, scoring, crawl policy, rendering, diffing |
-| `src/adapters/` | Impure edges: Playwright, axe, Lighthouse, PDF, HTTP |
-| `src/pipeline/` | Crawl → scan → report → monitor orchestration |
-| `src/cli/` | Commander CLI |
-| `docs/` | Product/technical spec, roadmap, runbook, maintenance, promotion, GDPR paperwork |
-| `outreach/` | German telephone script and postal letter — **drafts for human review** |
-| `test/fixtures/` | Synthetic shop pages used by every test |
+| Path             | Contents                                                                             |
+| ---------------- | ------------------------------------------------------------------------------------ |
+| `src/core/`      | Pure logic: WCAG catalogue, normalisation, scoring, crawl policy, rendering, diffing |
+| `src/adapters/`  | Impure edges: Playwright, axe, Lighthouse, PDF, HTTP                                 |
+| `src/pipeline/`  | Crawl → scan → report → monitor orchestration                                        |
+| `src/cli/`       | Commander CLI                                                                        |
+| `docs/`          | Product/technical spec, roadmap, runbook, maintenance, promotion, GDPR paperwork     |
+| `outreach/`      | German telephone script and postal letter — **drafts for human review**              |
+| `test/fixtures/` | Synthetic shop pages used by every test                                              |
 
 ## Status
 
