@@ -1,0 +1,185 @@
+import { describe, expect, it } from 'vitest';
+import { readFile } from 'node:fs/promises';
+import { fileURLToPath } from 'node:url';
+import { dirname, join } from 'node:path';
+import {
+  parseStatementAnswers,
+  statementWarnings,
+  StatementValidationError,
+} from '../src/core/statement/model.ts';
+import { renderStatementHtml, STATEMENT_SECTIONS } from '../src/core/statement/render.ts';
+import { RdgBoundaryError } from '../src/core/report/rdg.ts';
+import { sampleStatement, sampleStatementInput } from './helpers/sample-statement.ts';
+
+const REPO_ROOT = join(dirname(fileURLToPath(import.meta.url)), '..');
+
+describe('statement answers validation', () => {
+  it('accepts a fully filled set of answers', () => {
+    expect(() => parseStatementAnswers(sampleStatementInput())).not.toThrow();
+  });
+
+  it('rejects the shipped template, because it is all placeholders', async () => {
+    const template = JSON.parse(
+      await readFile(join(REPO_ROOT, 'data', 'erklaerung.beispiel.json'), 'utf8'),
+    );
+    expect(() => parseStatementAnswers(template)).toThrow(StatementValidationError);
+    try {
+      parseStatementAnswers(template);
+    } catch (error) {
+      const issues = (error as StatementValidationError).issues.join('\n');
+      expect(issues).toMatch(/Platzhalter/);
+      expect(issues).toMatch(/authority/);
+    }
+  });
+
+  it('requires the market surveillance authority — element 5 of Anlage 3', () => {
+    const input = sampleStatementInput() as Record<string, unknown>;
+    delete input.authority;
+    expect(() => parseStatementAnswers(input)).toThrow(StatementValidationError);
+  });
+
+  it('requires a verification date for the authority details', () => {
+    const input = sampleStatementInput() as any;
+    input.authority.verifiedOn = 'irgendwann';
+    expect(() => parseStatementAnswers(input)).toThrow(/JJJJ-MM-TT/);
+  });
+
+  it('rejects a service description too short to explain anything', () => {
+    const input = sampleStatementInput() as any;
+    input.service.description = 'Wir verkaufen Schuhe.';
+    expect(() => parseStatementAnswers(input)).toThrow(/80 Zeichen/);
+  });
+
+  it('requires at least one measure and one usage note', () => {
+    const noMeasures = sampleStatementInput() as any;
+    noMeasures.conformance.measures = [];
+    expect(() => parseStatementAnswers(noMeasures)).toThrow(/Maßnahme/);
+
+    const noNotes = sampleStatementInput() as any;
+    noNotes.service.understandingNotes = [];
+    expect(() => parseStatementAnswers(noNotes)).toThrow(/Erläuterung/);
+  });
+
+  it('rejects an invalid e-mail or URL rather than rendering it', () => {
+    const badEmail = sampleStatementInput() as any;
+    badEmail.feedback.email = 'keine-email';
+    expect(() => parseStatementAnswers(badEmail)).toThrow(/E-Mail/);
+
+    const badUrl = sampleStatementInput() as any;
+    badUrl.authority.url = 'behoerde.example';
+    expect(() => parseStatementAnswers(badUrl)).toThrow(/URL/);
+  });
+});
+
+describe('statement warnings', () => {
+  it('warns when the authority details have not been re-checked for over a year', () => {
+    const answers = sampleStatement();
+    const warnings = statementWarnings(answers, new Date('2028-01-01T00:00:00Z'));
+    expect(warnings.join('\n')).toMatch(/Marktüberwachungsbehörde/);
+    expect(warnings.join('\n')).toMatch(/älter als ein Jahr/);
+  });
+
+  it('warns while the wording has not been reviewed by a lawyer', () => {
+    const answers = { ...sampleStatement() };
+    answers.meta = { ...answers.meta, legalReviewConfirmed: false };
+    expect(statementWarnings(answers).join('\n')).toMatch(/anwaltlich geprüft/);
+  });
+
+  it('warns when the status is not "vollständig" but no barriers are listed', () => {
+    const answers = sampleStatement();
+    answers.conformance = { ...answers.conformance, knownBarriers: [] };
+    expect(statementWarnings(answers).join('\n')).toMatch(/keine bekannten Barrieren/);
+  });
+
+  it('is silent for a complete, current, reviewed statement', () => {
+    expect(statementWarnings(sampleStatement(), new Date('2026-09-06T00:00:00Z'))).toEqual([]);
+  });
+});
+
+describe('renderStatementHtml', () => {
+  const { html, isDraft } = renderStatementHtml(sampleStatement());
+
+  it('renders every element Anlage 3 requires, in order', () => {
+    const order = [
+      STATEMENT_SECTIONS.scope,
+      STATEMENT_SECTIONS.requirements,
+      STATEMENT_SECTIONS.description,
+      STATEMENT_SECTIONS.usage,
+      STATEMENT_SECTIONS.howMet,
+      STATEMENT_SECTIONS.barriers,
+      STATEMENT_SECTIONS.feedback,
+      STATEMENT_SECTIONS.authority,
+      STATEMENT_SECTIONS.meta,
+    ];
+    let cursor = -1;
+    for (const id of order) {
+      const at = html.indexOf(`id="${id}"`);
+      expect(at, id).toBeGreaterThan(cursor);
+      cursor = at;
+    }
+  });
+
+  it('names the applicable requirements (element 1)', () => {
+    expect(html).toContain('Barrierefreiheitsstärkungsgesetz');
+    expect(html).toContain('EN 301 549');
+    expect(html).toContain('WCAG 2.1 Stufe AA');
+  });
+
+  it('describes the service and how to use it (elements 2 and 3)', () => {
+    expect(html).toContain('verkaufen wir Schuhe');
+    expect(html).toContain('ohne Kundenkonto bestellen');
+  });
+
+  it('describes how the requirements are met (element 4)', () => {
+    expect(html).toContain('mit der Tastatur erreichbar');
+    expect(html).toContain('Kontrastverhältnis von mindestens 4,5:1');
+  });
+
+  it('gives the market surveillance authority with a checked-on date (element 5)', () => {
+    expect(html).toContain('Marktüberwachungsbehörde');
+    expect(html).toContain('behoerde.example');
+    expect(html).toContain('zuletzt geprüft am 1. September 2026');
+  });
+
+  it('lists known barriers with reason and alternative', () => {
+    expect(html).toContain('nicht tastaturbedienbar');
+    expect(html).toContain('Drittanbieters');
+    expect(html).toContain('Alle Filialadressen stehen als Text');
+  });
+
+  it('provides a working feedback channel', () => {
+    expect(html).toContain('mailto:barrierefreiheit@musterschuhe.example');
+    expect(html).toContain('innerhalb von 14 Tagen');
+  });
+
+  it('has no draft banner once the wording is confirmed as reviewed', () => {
+    expect(isDraft).toBe(false);
+    expect(html).not.toContain('ENTWURF');
+  });
+
+  it('stamps ENTWURF on every statement whose wording is not yet lawyer-reviewed', () => {
+    const answers = sampleStatement();
+    answers.meta = { ...answers.meta, legalReviewConfirmed: false };
+    const draft = renderStatementHtml(answers);
+    expect(draft.isDraft).toBe(true);
+    expect(draft.html).toContain('ENTWURF — noch nicht veröffentlichen');
+    expect(draft.html).toContain('anwaltlich geprüft');
+  });
+
+  it('escapes operator-supplied text', () => {
+    const answers = sampleStatement();
+    answers.provider = { ...answers.provider, name: '<img src=x onerror=alert(1)>' };
+    const { html: escaped } = renderStatementHtml(answers);
+    expect(escaped).not.toContain('<img src=x');
+    expect(escaped).toContain('&lt;img src=x');
+  });
+
+  it('refuses to promise legal compliance, even if the operator writes it', () => {
+    const answers = sampleStatement();
+    answers.conformance = {
+      ...answers.conformance,
+      measures: ['Unser Shop ist damit rechtssicher und BFSG-konform.'],
+    };
+    expect(() => renderStatementHtml(answers)).toThrow(RdgBoundaryError);
+  });
+});

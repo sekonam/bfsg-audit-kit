@@ -1,0 +1,77 @@
+{
+  "_hinweis": [
+    "VORLAGE für eine Barrierefreiheitserklärung nach Anlage 3 BFSGV.",
+    "Alle mit BITTE AUSFÜLLEN markierten Werte müssen ersetzt werden — der Generator",
+    "weist die Datei sonst zurück.",
+    "",
+    "WICHTIG, zwei Punkte, die eine Person erledigen muss und keine Software:",
+    "1. Die Angaben zur Marktüberwachungsbehörde (Abschnitt 'authority') sind gegen die",
+    "   Website der Behörde zu prüfen und 'verifiedOn' auf das Prüfdatum zu setzen.",
+    "   Es sind bewusst keine Werte vorbelegt: eine falsche Behördenanschrift in einer",
+    "   gesetzlich vorgeschriebenen Erklärung ist ein echter Mangel.",
+    "2. 'meta.legalReviewConfirmed' erst auf true setzen, wenn eine Rechtsanwältin oder",
+    "   ein Rechtsanwalt die Formulierung geprüft hat. Bis dahin wird die Erklärung mit",
+    "   einem ENTWURF-Banner ausgegeben."
+  ],
+  "provider": {
+    "name": "BITTE AUSFÜLLEN — Firmenname",
+    "legalForm": "GmbH",
+    "address": {
+      "street": "BITTE AUSFÜLLEN — Straße und Hausnummer",
+      "postalCode": "BITTE AUSFÜLLEN",
+      "city": "BITTE AUSFÜLLEN",
+      "country": "Deutschland"
+    },
+    "email": "kontakt@beispiel.de",
+    "phone": "+49 30 000000",
+    "website": "https://www.beispiel.de"
+  },
+  "service": {
+    "name": "BITTE AUSFÜLLEN — Name des Onlineshops",
+    "url": "https://www.beispiel.de",
+    "description": "BITTE AUSFÜLLEN — Beschreiben Sie in einfachen, kurzen Sätzen, was in diesem Onlineshop angeboten wird und wie eine Bestellung abläuft. Mindestens 80 Zeichen, ohne Fachbegriffe.",
+    "understandingNotes": [
+      "BITTE AUSFÜLLEN — z. B.: Sie können ohne Kundenkonto bestellen.",
+      "BITTE AUSFÜLLEN — z. B.: Die Bestellung erfolgt in vier Schritten: Warenkorb, Adresse, Zahlungsart, Bestätigung."
+    ]
+  },
+  "conformance": {
+    "standard": "EN 301 549 (Kapitel 9) / WCAG 2.1 Stufe AA",
+    "status": "teilweise",
+    "measures": [
+      "BITTE AUSFÜLLEN — z. B.: Alle Bedienelemente sind mit der Tastatur erreichbar.",
+      "BITTE AUSFÜLLEN — z. B.: Texte erfüllen ein Kontrastverhältnis von mindestens 4,5:1."
+    ],
+    "knownBarriers": [
+      {
+        "description": "BITTE AUSFÜLLEN — z. B.: Die eingebundene Karte auf der Seite „Filialen“ ist nicht mit der Tastatur bedienbar.",
+        "reason": "BITTE AUSFÜLLEN — z. B.: Es handelt sich um einen Dienst eines Drittanbieters, auf dessen Umsetzung wir keinen Einfluss haben.",
+        "alternative": "Die Adressen aller Filialen stehen als Text auf derselben Seite.",
+        "plannedFix": "Ersatz des Kartendienstes bis Q2/2027 geplant."
+      }
+    ]
+  },
+  "feedback": {
+    "contactName": "BITTE AUSFÜLLEN — Ansprechpartner",
+    "email": "barrierefreiheit@beispiel.de",
+    "phone": "+49 30 000000",
+    "responseTimeDays": 14
+  },
+  "authority": {
+    "name": "BITTE AUSFÜLLEN — Name der zuständigen Marktüberwachungsbehörde",
+    "address": {
+      "street": "BITTE AUSFÜLLEN",
+      "postalCode": "BITTE AUSFÜLLEN",
+      "city": "BITTE AUSFÜLLEN",
+      "country": "Deutschland"
+    },
+    "url": "https://www.beispiel-behoerde.de",
+    "verifiedOn": "2026-01-01"
+  },
+  "meta": {
+    "createdOn": "2026-01-01",
+    "lastReviewedOn": "2026-01-01",
+    "basis": "externe-pruefung",
+    "legalReviewConfirmed": false
+  }
+}
