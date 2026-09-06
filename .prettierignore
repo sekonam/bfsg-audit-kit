@@ -1,0 +1,7 @@
+dist
+coverage
+node_modules
+out
+.artifacts
+pnpm-lock.yaml
+test/fixtures/**/*.html
