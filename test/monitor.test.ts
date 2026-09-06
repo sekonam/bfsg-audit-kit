@@ -14,7 +14,10 @@ const baseline = sampleScan();
 
 describe('diffScans', () => {
   it('reports no regression when nothing changed', () => {
-    const diff = diffScans(baseline, withFindings(baseline, sampleFindings(), '2026-10-06T08:00:00Z'));
+    const diff = diffScans(
+      baseline,
+      withFindings(baseline, sampleFindings(), '2026-10-06T08:00:00Z'),
+    );
     expect(diff.hasRegression).toBe(false);
     expect(diff.newFindings).toEqual([]);
     expect(diff.worsened).toEqual([]);
