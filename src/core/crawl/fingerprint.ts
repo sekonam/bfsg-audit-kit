@@ -29,6 +29,9 @@ interface Signal {
   readonly test: (input: { html: string; url: string; headers: Record<string, string> }) => boolean;
 }
 
+/** Platform markers appear in the head; scanning a whole megabyte is pure risk. */
+export const MAX_FINGERPRINT_BYTES = 512 * 1024;
+
 const has = (needle: string) => (input: { html: string }) => input.html.includes(needle);
 const headerHas = (name: string) => (input: { headers: Record<string, string> }) =>
   name.toLowerCase() in input.headers;
@@ -65,7 +68,7 @@ const SIGNALS: readonly Signal[] = [
     platform: 'shopware',
     label: 'meta generator: Shopware',
     weight: 4,
-    test: (i) => /<meta[^>]+name=["']generator["'][^>]+shopware/i.test(i.html),
+    test: (i) => /<meta[^>]{0,200}?name=["']generator["'][^>]{0,200}?shopware/i.test(i.html),
   },
   {
     platform: 'shopware',
@@ -146,7 +149,13 @@ export function fingerprint(input: FingerprintInput): FingerprintResult {
   for (const [key, value] of Object.entries(input.headers ?? {})) {
     normalisedHeaders[key.toLowerCase()] = value;
   }
-  const ctx = { html: input.html, url: input.url, headers: normalisedHeaders };
+  // Bounded: the unbounded `[^>]+` runs below are quadratic on hostile markup
+  // (measured 418 KB -> 44 s), and platform markers live in the head anyway.
+  const ctx = {
+    html: input.html.slice(0, MAX_FINGERPRINT_BYTES),
+    url: input.url,
+    headers: normalisedHeaders,
+  };
 
   const scores = new Map<Platform, { score: number; evidence: string[] }>();
   for (const signal of SIGNALS) {

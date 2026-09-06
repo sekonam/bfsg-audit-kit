@@ -42,6 +42,17 @@ export const SEVERITY_ORDER: readonly Severity[] = [
   'minor',
 ] as const;
 
+/**
+ * Severity comes from a scanning engine running inside a page the shop
+ * controls, so it is untrusted input, not a guaranteed union member. A page can
+ * hijack `window.axe` and return whatever it likes — including a value that
+ * would land in a CSS class attribute, or one that makes a score arithmetic
+ * NaN. Everything crossing that boundary is checked with this.
+ */
+export function isSeverity(value: unknown): value is Severity {
+  return typeof value === 'string' && (SEVERITY_ORDER as readonly string[]).includes(value);
+}
+
 export type WcagLevel = 'A' | 'AA';
 
 export interface WcagCriterion {

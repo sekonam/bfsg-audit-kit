@@ -1,3 +1,4 @@
+import { isSeverity, type Severity } from '../types.ts';
 import { journeyLabel } from '../crawl/journey.ts';
 import {
   escapeHtml,
@@ -23,6 +24,14 @@ import type { FindingDelta, ScanDiff } from './diff.ts';
  * sends, or a URL the customer opens.
  */
 
+/** Same fixed lookup as the audit report: never interpolate a severity. */
+const BADGE_CLASS: Readonly<Record<Severity, string>> = {
+  critical: 'badge-critical',
+  serious: 'badge-serious',
+  moderate: 'badge-moderate',
+  minor: 'badge-minor',
+};
+
 function deltaRow(delta: FindingDelta): string {
   const change =
     delta.after === delta.before
@@ -31,7 +40,9 @@ function deltaRow(delta: FindingDelta): string {
   return `
     <tr>
       <th scope="row">${escapeHtml(delta.titleDe)}</th>
-      <td><span class="badge badge-${delta.severity}">${escapeHtml(severityLabelDe(delta.severity))}</span></td>
+      <td><span class="badge ${BADGE_CLASS[delta.severity] ?? 'badge-minor'}">${escapeHtml(
+        isSeverity(delta.severity) ? severityLabelDe(delta.severity) : String(delta.severity),
+      )}</span></td>
       <td>${escapeHtml(delta.kind)}</td>
       <td class="numeric">${change}</td>
       <td>${

@@ -3,7 +3,7 @@ import { CRITICAL_JOURNEYS } from '../core/types.ts';
 import type { CrawlPolicy } from '../core/crawl/policy.ts';
 import { describePolicy } from '../core/crawl/policy.ts';
 import { HostRateLimiter } from '../core/crawl/rate-limit.ts';
-import { shopIdFromUrl } from '../core/crawl/url.ts';
+import { isSameSite, shopIdFromUrl } from '../core/crawl/url.ts';
 import {
   normalizeFindings,
   type PageAxeResult,
@@ -102,6 +102,18 @@ export async function scanShop(startUrl: string, options: ScanOptions): Promise<
         const result = await runLighthouse(target.url, devtoolsPort, options.policy.userAgent);
         if (result.error) {
           warnings.push(`Lighthouse für ${target.url} fehlgeschlagen: ${result.error}`);
+          continue;
+        }
+        // Lighthouse drives its own target over CDP, outside the Playwright
+        // context carrying the navigation guard, so it follows redirects
+        // unchecked. A shop that redirects only on the second load could
+        // otherwise pull the operator's machine onto an internal host AND get
+        // that host's markup recorded in the customer's report under the shop's
+        // own URL. The result is discarded if it did not stay on the shop.
+        if (result.finalUrl && !isSameSite(result.finalUrl, target.url)) {
+          warnings.push(
+            `Lighthouse für ${target.url} verworfen: Weiterleitung auf ${result.finalUrl} (fremder Host).`,
+          );
           continue;
         }
         lighthouseVersion = result.version;

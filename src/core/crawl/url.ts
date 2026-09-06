@@ -96,12 +96,22 @@ export function extractLinks(html: string, baseUrl: string): string[] {
   return [...found];
 }
 
-/** Filesystem-safe identifier for a shop, used as the per-shop output directory. */
+/**
+ * Filesystem-safe identifier for a shop, used as the per-shop output directory.
+ *
+ * `new URL('http://../x')` parses with hostname '..', which would put the whole
+ * output one directory above the data directory. Dot-only ids are refused.
+ */
 export function shopIdFromUrl(url: string): string {
+  let id: string;
   try {
-    const { hostname } = new URL(url);
-    return hostname.replace(/^www\./i, '').replace(/[^a-z0-9.-]/gi, '-');
+    id = new URL(url).hostname.replace(/^www\./i, '');
   } catch {
-    return url.replace(/[^a-z0-9.-]/gi, '-');
+    id = url;
   }
+  id = id
+    .replace(/[^a-z0-9.-]/gi, '-')
+    .replace(/\.{2,}/g, '.')
+    .replace(/^[.-]+/, '');
+  return id === '' ? 'unbekannter-shop' : id;
 }

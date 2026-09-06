@@ -18,6 +18,13 @@ export interface LighthouseRunResult {
   readonly audits: RawLighthouseAudit[];
   readonly version: string;
   readonly error?: string;
+  /**
+   * The URL Lighthouse ended up on. Lighthouse drives its own target over CDP,
+   * outside the Playwright context the navigation guard is installed on, so it
+   * follows redirects unchecked. The caller compares this against the URL it
+   * asked for and discards the result on a mismatch.
+   */
+  readonly finalUrl?: string;
 }
 
 interface LhAuditDetailItem {
@@ -77,7 +84,13 @@ export async function runLighthouse(
     }
 
     const categoryScore = lhr.categories?.accessibility?.score ?? null;
-    return { categoryScore, audits, version: lhr.lighthouseVersion ?? 'unbekannt' };
+    const finalUrl = lhr.finalDisplayedUrl ?? lhr.finalUrl ?? lhr.requestedUrl ?? url;
+    return {
+      categoryScore,
+      audits,
+      version: lhr.lighthouseVersion ?? 'unbekannt',
+      finalUrl,
+    };
   } catch (error) {
     return {
       categoryScore: null,

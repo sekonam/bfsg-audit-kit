@@ -96,13 +96,34 @@ describe('isAllowed', () => {
 
 describe('patternToRegExp', () => {
   it('anchors at the start and escapes regex metacharacters', () => {
-    expect(patternToRegExp('/a+b').test('/a+b/c')).toBe(true);
-    expect(patternToRegExp('/a+b').test('/x/a+b')).toBe(false);
+    expect(patternToRegExp('/a+b')?.test('/a+b/c')).toBe(true);
+    expect(patternToRegExp('/a+b')?.test('/x/a+b')).toBe(false);
   });
 
   it('anchors at the end for $ patterns', () => {
-    expect(patternToRegExp('/x$').test('/x')).toBe(true);
-    expect(patternToRegExp('/x$').test('/xy')).toBe(false);
+    expect(patternToRegExp('/x$')?.test('/x')).toBe(true);
+    expect(patternToRegExp('/x$')?.test('/xy')).toBe(false);
+  });
+
+  it('refuses to compile a pattern built to hang the crawler', () => {
+    // robots.txt is served by the party being audited. Before the bound, this
+    // 40-byte line took over 100 seconds for a single match.
+    const evil = `/${'a*'.repeat(20)}b`;
+    expect(patternToRegExp(evil)).toBeNull();
+    expect(patternToRegExp(`/${'x'.repeat(600)}`)).toBeNull();
+  });
+
+  it('matches a hostile pattern in negligible time instead of hanging', () => {
+    const rules = parseRobots(`User-agent: *\nDisallow: /${'a*'.repeat(20)}b`);
+    const started = Date.now();
+    isAllowed(rules, UA, `/${'a'.repeat(60)}`);
+    expect(Date.now() - started).toBeLessThan(1000);
+  });
+
+  it('still honours patterns with a reasonable number of wildcards', () => {
+    const rules = parseRobots('User-agent: *\nDisallow: /*/intern/*.pdf$');
+    expect(isAllowed(rules, UA, '/de/intern/x.pdf')).toBe(false);
+    expect(isAllowed(rules, UA, '/de/oeffentlich/x.pdf')).toBe(true);
   });
 });
 

@@ -1,8 +1,8 @@
 import { mkdir } from 'node:fs/promises';
-import { dirname, join } from 'node:path';
+import { dirname, join, resolve, sep } from 'node:path';
 import { chromium, type Browser, type BrowserContext, type Page } from 'playwright';
 import type { CrawlPolicy } from '../core/crawl/policy.ts';
-import { runAxe, type AxeRunResult } from './axe.ts';
+import { runAxe, sanitiseRuleId, type AxeRunResult } from './axe.ts';
 
 /**
  * Playwright session used for crawling and scanning.
@@ -67,6 +67,9 @@ export type NavigationGuard = (url: string) => boolean | Promise<boolean>;
 
 /** Redirect hops followed before giving up. */
 export const MAX_REDIRECTS = 5;
+
+/** robots.txt is a short text file; anything beyond this is not one. */
+export const MAX_ROBOTS_BYTES = 64 * 1024;
 
 export class NavigationBlockedError extends Error {
   override readonly name = 'NavigationBlockedError';
@@ -296,8 +299,12 @@ export class PlaywrightSession implements PageFetcher {
       const node = violation.nodes[0];
       const selector = node?.target[0];
       if (!selector) continue;
-      const name = `${violation.id}-${(this.#screenshotCounter += 1)}.png`;
+      // The rule id comes from inside the scanned page. Unsanitised it is a
+      // directory traversal: `../../../../tmp/x` wrote a PNG anywhere on the
+      // filesystem, and mkdir(recursive) even created the path first.
+      const name = `${sanitiseRuleId(violation.id)}-${(this.#screenshotCounter += 1)}.png`;
       const filePath = join(dir, name);
+      if (!resolve(filePath).startsWith(resolve(dir) + sep)) continue;
       try {
         const locator = page.locator(selector).first();
         if (!(await locator.isVisible())) continue;
@@ -337,7 +344,11 @@ export async function fetchText(
       signal: controller.signal,
       redirect: 'follow',
     });
-    return { status: response.status, body: await response.text() };
+    // robots.txt is a small text file. Reading an unbounded body from a host
+    // we are about to trust for crawl rules is an easy way to be OOM'd by the
+    // very site being audited.
+    const body = (await response.text()).slice(0, MAX_ROBOTS_BYTES);
+    return { status: response.status, body };
   } catch {
     // Network failure is reported as status 0, which robotsFromResponse treats
     // as "deny all" — the conservative reading.

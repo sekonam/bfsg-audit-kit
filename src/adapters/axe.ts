@@ -1,7 +1,7 @@
 import { AxeBuilder } from '@axe-core/playwright';
 import type { Page } from 'playwright';
 import type { RawAxeViolation } from '../core/findings/normalize.ts';
-import type { Severity } from '../core/types.ts';
+import { isSeverity } from '../core/types.ts';
 
 /**
  * axe-core adapter.
@@ -15,6 +15,23 @@ import type { Severity } from '../core/types.ts';
  */
 export const AXE_TAGS = ['wcag2a', 'wcag2aa', 'wcag21a', 'wcag21aa', 'best-practice'] as const;
 
+/**
+ * Rule ids are used as filenames for element screenshots and as text in the
+ * report, and they come from inside the scanned page. `../../../x` is a
+ * perfectly acceptable string to axe and a directory traversal to `path.join`.
+ */
+export function sanitiseRuleId(id: unknown): string {
+  const text = typeof id === 'string' ? id : String(id);
+  const safe = text
+    .replace(/[^a-zA-Z0-9._-]/g, '_')
+    // Collapse dot runs so no ".." survives anywhere in the name, not just at
+    // the front — belt and braces alongside the containment check at the write.
+    .replace(/\.{2,}/g, '.')
+    .replace(/^[.]+/, '')
+    .slice(0, 60);
+  return safe === '' ? 'unbekannte-regel' : safe;
+}
+
 export interface AxeRunResult {
   readonly violations: RawAxeViolation[];
   readonly axeVersion: string;
@@ -26,8 +43,9 @@ export async function runAxe(page: Page): Promise<AxeRunResult> {
   const results = await new AxeBuilder({ page }).withTags([...AXE_TAGS]).analyze();
 
   const violations: RawAxeViolation[] = results.violations.map((violation) => ({
-    id: violation.id,
-    impact: (violation.impact ?? null) as Severity | null,
+    id: sanitiseRuleId(violation.id),
+    // Validated, not cast: axe's output is produced inside the shop's page.
+    impact: isSeverity(violation.impact) ? violation.impact : null,
     help: violation.help,
     description: violation.description,
     ...(violation.helpUrl ? { helpUrl: violation.helpUrl } : {}),

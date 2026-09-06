@@ -1,4 +1,10 @@
-import type { Finding, FindingInstance, Journey, Severity } from '../types.ts';
+import {
+  isSeverity,
+  type Finding,
+  type FindingInstance,
+  type Journey,
+  type Severity,
+} from '../types.ts';
 import { compareCriteria, criterionFromAxeTag } from '../wcag/catalog.ts';
 import { LIGHTHOUSE_ONLY_COPY, RULE_COPY } from '../wcag/rule-catalog.ts';
 
@@ -94,7 +100,9 @@ function draftFromAxe(violation: RawAxeViolation): Draft {
     ruleId: violation.id,
     source: 'axe',
     criteria: copy?.criteria ? [...copy.criteria].sort(compareCriteria) : derived,
-    severity: copy?.severity ?? violation.impact ?? 'moderate',
+    // Second line of defence behind the adapter: a rule with no catalogue
+    // entry takes the engine's impact, and the engine ran inside the shop's page.
+    severity: copy?.severity ?? (isSeverity(violation.impact) ? violation.impact : 'moderate'),
     titleDe: copy?.titleDe ?? `[EN] ${violation.help}`,
     descriptionDe: copy?.descriptionDe ?? `[EN] ${violation.description}`,
     remediationDe:

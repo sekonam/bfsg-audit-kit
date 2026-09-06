@@ -143,16 +143,49 @@ function selectGroup(rules: RobotsRules, userAgent: string): RobotsGroup | undef
   return specific ?? wildcard;
 }
 
-/** Convert a robots.txt path pattern into an anchored regular expression. */
-export function patternToRegExp(pattern: string): RegExp {
-  const anchored = pattern.endsWith('$');
-  const body = anchored ? pattern.slice(0, -1) : pattern;
-  const escaped = body.replace(/[.+?^${}()|[\]\\]/g, '\\$&').replace(/\*/g, '.*');
-  return new RegExp(`^${escaped}${anchored ? '$' : ''}`);
+/**
+ * Limits on patterns compiled from robots.txt.
+ *
+ * robots.txt is served by the party being audited, so its contents are
+ * attacker-controlled. `*` → `.*` with no bound is catastrophic backtracking:
+ * a measured 40-byte line — `Disallow: /a*a*a*…*b` with 20 wildcards — took
+ * **101 seconds** for a single match and stalled the crawl with no watchdog.
+ */
+export const MAX_PATTERN_LENGTH = 500;
+export const MAX_PATTERN_WILDCARDS = 5;
+
+/** Compiled patterns are cached: matchLength is called per rule, per path. */
+const patternCache = new Map<string, RegExp | null>();
+
+/**
+ * Convert a robots.txt path pattern into an anchored regular expression.
+ * Returns null for a pattern too long or too wildcard-heavy to compile safely;
+ * such a rule is treated as non-matching rather than risking the crawl.
+ */
+export function patternToRegExp(pattern: string): RegExp | null {
+  const cached = patternCache.get(pattern);
+  if (cached !== undefined) return cached;
+
+  let compiled: RegExp | null = null;
+  const wildcards = (pattern.match(/\*/g) ?? []).length;
+  if (pattern.length <= MAX_PATTERN_LENGTH && wildcards <= MAX_PATTERN_WILDCARDS) {
+    const anchored = pattern.endsWith('$');
+    const body = anchored ? pattern.slice(0, -1) : pattern;
+    const escaped = body
+      .replace(/[.+?^${}()|[\]\\]/g, '\\$&')
+      // `[^]*?` instead of `.*`: lazy and character-class based, which removes
+      // the nested-quantifier backtracking that made this exploitable.
+      .replace(/\*/g, '[^]*?');
+    compiled = new RegExp(`^${escaped}${anchored ? '$' : ''}`);
+  }
+  if (patternCache.size < 2_000) patternCache.set(pattern, compiled);
+  return compiled;
 }
 
 function matchLength(pattern: string, path: string): number {
-  return patternToRegExp(pattern).test(path) ? pattern.replace(/\$$/, '').length : -1;
+  const re = patternToRegExp(pattern);
+  if (!re) return -1;
+  return re.test(path) ? pattern.replace(/\$$/, '').length : -1;
 }
 
 /**

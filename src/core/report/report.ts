@@ -1,5 +1,5 @@
 import type { Finding, Journey, ScanResult, Severity } from '../types.ts';
-import { CRITICAL_JOURNEYS } from '../types.ts';
+import { CRITICAL_JOURNEYS, isSeverity } from '../types.ts';
 import { compareCriteria, getCriterion } from '../wcag/catalog.ts';
 import { bestPracticeFindings, conformanceFindings } from '../findings/normalize.ts';
 import { conformanceBand } from '../findings/score.ts';
@@ -49,8 +49,27 @@ function hostOf(url: string): string {
   }
 }
 
+/**
+ * Severity badge.
+ *
+ * The class name is taken from a fixed lookup rather than interpolated, because
+ * the value originates in the scanned page: an unvalidated severity went
+ * straight into a class attribute, which is a stored XSS on the customer's
+ * origin once they publish the report — and, during --pdf, script execution
+ * inside our own Chromium that could rewrite the DOM after the RDG check had
+ * already read the source.
+ */
+const BADGE_CLASS: Readonly<Record<Severity, string>> = {
+  critical: 'badge-critical',
+  serious: 'badge-serious',
+  moderate: 'badge-moderate',
+  minor: 'badge-minor',
+};
+
 function badge(severity: Severity): string {
-  return `<span class="badge badge-${severity}">${escapeHtml(severityLabelDe(severity))}</span>`;
+  const cls = BADGE_CLASS[severity] ?? 'badge-minor';
+  const label = isSeverity(severity) ? severityLabelDe(severity) : String(severity);
+  return `<span class="badge ${cls}">${escapeHtml(label)}</span>`;
 }
 
 function instancesTable(finding: Finding, max: number, screenshotBase: string): string {

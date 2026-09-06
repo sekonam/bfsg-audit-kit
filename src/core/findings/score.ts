@@ -46,7 +46,11 @@ export function occurrenceFactor(instances: number): number {
 export const DECAY = 120;
 
 function penaltyOf(finding: Finding): number {
-  return SEVERITY_WEIGHT[finding.severity] * occurrenceFactor(finding.instances.length);
+  // A severity outside the union would make this NaN and render the whole
+  // conformance score as "NaN/100"; findings arrive from an engine running in
+  // the shop's page and from stored scan.json files.
+  const weight = SEVERITY_WEIGHT[finding.severity] ?? SEVERITY_WEIGHT.moderate;
+  return weight * occurrenceFactor(finding.instances.length);
 }
 
 /** Distinct critical journeys affected by serious-or-worse findings. */
@@ -74,7 +78,7 @@ export function estimateEffort(findings: readonly Finding[]): { low: number; hig
   let raw = 0;
   for (const finding of findings) {
     const perFinding =
-      base[finding.severity] * (finding.mechanicallyFixable ? 0.6 : 1.4) +
+      (base[finding.severity] ?? base.moderate) * (finding.mechanicallyFixable ? 0.6 : 1.4) +
       Math.min(0.05 * Math.max(0, finding.instances.length - 1), 4);
     raw += perFinding;
   }

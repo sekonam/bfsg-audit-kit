@@ -183,7 +183,23 @@ inline stylesheet with documented contrast ratios, and print rules. **Everything
 documents are handed over as single files and must render offline, as an attachment and in the
 PDF printer. There is no JavaScript and no external request.
 
-### 5.0 URL safety
+### 5.0 Untrusted input, and URL safety
+
+Two sources are untrusted and treated as such: the **scanned shop** (axe runs inside its page and
+its output is whatever that page allows) and a **stored `scan.json`** (it can arrive from a
+colleague or be hand-edited). Severities are validated with `isSeverity` rather than cast, badge
+class names come from a fixed lookup rather than interpolation, engine rule ids are sanitised
+before they are used as filenames and checked for containment at the write, and robots.txt
+patterns are wildcard- and length-bounded with the body size-capped. `stripNonStructural` is an
+index scan rather than a regex because the regex form was quadratic on unclosed tags.
+
+Lighthouse deserves its own note: it drives its own target over CDP, **outside** the Playwright
+context the navigation guard is installed on, so it follows redirects unchecked. Its final URL is
+compared with `isSameSite` and the result is discarded with a warning if it left the shop — a
+shop that redirects only on the second load could otherwise pull the operator's machine onto an
+internal host and get that host's markup into the customer's report.
+
+### 5.1 URL safety
 
 `escapeHtml` stops an attribute breakout but does nothing about the **scheme**, and the scheme is
 the payload: `javascript:alert(1)` survives escaping untouched, and zod's `.url()` accepts it as
@@ -196,7 +212,7 @@ Stored scans get the same treatment as statement answers: `loadScanResult` valid
 structure the renderers depend on instead of casting `JSON.parse` output to `ScanResult`. A
 scan.json can arrive from a colleague, from an older version, or hand-edited.
 
-### 5.1 The RDG check is a code path
+### 5.2 The RDG check is a code path
 
 `src/core/report/rdg.ts` holds a list of forbidden patterns in **both directions** — threats
 (`Bußgeld`, `Abmahnung`, `Sanktion`, `rechtswidrig`, `haftbar`) and guarantees (`rechtssicher`,

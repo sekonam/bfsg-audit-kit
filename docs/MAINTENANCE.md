@@ -54,6 +54,14 @@ Two reasons, both real:
 If the development machine moves to macOS 14+, both pins can be lifted together. Bump them in one
 commit and run the full suite; the browser tests will catch a mismatch immediately.
 
+**⚠️ The pin carries an accepted advisory: GHSA-7mvr-c777-76hp (high), "Playwright downloads and
+installs browsers without verifying the SSL certificate", fixed in 1.55.1.** The exposure is
+`playwright install` — the browser _download_ path — not anything the scanner does at runtime.
+It is accepted because 1.55.1 has no macOS 13 build at all, which would mean no browser and no
+tool. Mitigations: install browsers on a trusted network, and note that CI installs on a
+GitHub-hosted runner. **This is the single reason to move the dev machine to macOS 14+ and lift
+the pin.** Re-check on every dependency review.
+
 ## Keeping the German rule catalogue useful
 
 `src/core/wcag/rule-catalog.ts` is copy, not configuration. It is written for a merchant, not a
@@ -78,6 +86,24 @@ distribution (19.7% of German shops at 90+, 80.1% at 50–89). After ten real pr
 with your own data: if the shops you actually convert cluster somewhere other than 55, move the
 peak. `test/score.test.ts` contains golden values that will fail loudly when you do — update them
 deliberately, in the same commit, with the new calibration written into the docstring.
+
+## The scanned shop is untrusted input
+
+Worth restating because it is not obvious: **axe runs inside the shop's page.** A page can
+predefine a non-writable `window.axe` and make the scan return whatever it likes — rule ids,
+severities, node markup. Those values reach a filename, a CSS class attribute, and a document the
+customer publishes on their own origin.
+
+So four boundaries are enforced and must stay enforced:
+
+| Boundary                                                                                        | Where                                                                                         |
+| ----------------------------------------------------------------------------------------------- | --------------------------------------------------------------------------------------------- |
+| Severity is validated, never cast, and never interpolated into markup                           | `isSeverity` in `src/core/types.ts`; the `BADGE_CLASS` lookups in both report renderers       |
+| Rule ids are sanitised before touching the filesystem, with a containment check at the write    | `sanitiseRuleId` in `src/adapters/axe.ts`; `#captureScreenshots` in `src/adapters/browser.ts` |
+| Patterns compiled from robots.txt are length- and wildcard-bounded, and the body is size-capped | `patternToRegExp`; `MAX_ROBOTS_BYTES`                                                         |
+| Structural scanning of page HTML is linear and length-capped                                    | `stripNonStructural` is an index scan, not a regex, for exactly this reason                   |
+
+If you add a field that comes from an engine or from a `scan.json`, assume it is hostile.
 
 ## Security and privacy
 

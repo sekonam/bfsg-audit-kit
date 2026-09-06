@@ -23,13 +23,75 @@ function isStructuralClass(token: string): boolean {
 
 export const MAX_STRUCTURE_TOKENS = 400;
 
-/** Remove elements whose contents are noise (scripts, styles, inline SVG paths). */
+/**
+ * How much HTML the structural heuristics look at.
+ *
+ * The lazy `[\s\S]*?` scans below degrade quadratically on unclosed tags in a
+ * hostile page: 960 KB of markup measured at 17 seconds, and this runs for five
+ * tag names on every fetched page. The signature only needs the first few
+ * hundred elements, so the tail is not worth the exposure.
+ */
+export const MAX_HTML_BYTES = 512 * 1024;
+
+/**
+ * Remove elements whose contents are noise (scripts, styles, inline SVG paths).
+ *
+ * Index-based rather than regex-based, and deliberately so: the obvious
+ * `<script\b[^>]*>[\s\S]*?</script>` is quadratic when a hostile page serves
+ * thousands of unclosed `<script>` tags — measured at 17 seconds for a page
+ * this crawler would happily fetch, five times over (once per skipped tag).
+ * This scan is linear and cannot be made to backtrack.
+ */
 export function stripNonStructural(html: string): string {
-  let out = html.replace(/<!--[\s\S]*?-->/g, '');
-  for (const tag of SKIP_CONTENT) {
-    out = out.replace(new RegExp(`<${tag}\\b[^>]*>[\\s\\S]*?</${tag}\\s*>`, 'gi'), '');
-    out = out.replace(new RegExp(`<${tag}\\b[^>]*/>`, 'gi'), '');
+  const source = html.slice(0, MAX_HTML_BYTES);
+  const lower = source.toLowerCase();
+  let out = '';
+  let i = 0;
+
+  while (i < source.length) {
+    const lt = lower.indexOf('<', i);
+    if (lt === -1) {
+      out += source.slice(i);
+      break;
+    }
+    out += source.slice(i, lt);
+
+    if (lower.startsWith('<!--', lt)) {
+      const end = lower.indexOf('-->', lt + 4);
+      i = end === -1 ? source.length : end + 3;
+      continue;
+    }
+
+    let handled = false;
+    for (const tag of SKIP_CONTENT) {
+      if (!lower.startsWith(`<${tag}`, lt)) continue;
+      const next = lower.charAt(lt + tag.length + 1);
+      // `<svgfoo>` is not `<svg>`.
+      if (next !== '' && !/[\s/>]/.test(next)) continue;
+
+      const openEnd = lower.indexOf('>', lt);
+      if (openEnd === -1) {
+        i = source.length;
+      } else if (source.charAt(openEnd - 1) === '/') {
+        i = openEnd + 1; // self-closing: nothing to skip over
+      } else {
+        const close = lower.indexOf(`</${tag}`, openEnd);
+        if (close === -1) {
+          i = source.length;
+        } else {
+          const closeEnd = lower.indexOf('>', close);
+          i = closeEnd === -1 ? source.length : closeEnd + 1;
+        }
+      }
+      handled = true;
+      break;
+    }
+    if (handled) continue;
+
+    out += '<';
+    i = lt + 1;
   }
+
   return out;
 }
 
