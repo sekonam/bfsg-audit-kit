@@ -36,7 +36,7 @@
     "axe-core": "^4.10.2",
     "commander": "^12.1.0",
     "lighthouse": "^12.2.1",
-    "playwright": "^1.54.2",
+    "playwright": "1.54.2",
     "zod": "^3.23.8"
   },
   "devDependencies": {
@@ -49,5 +49,10 @@
     "typescript": "^5.7.2",
     "typescript-eslint": "^8.18.0",
     "vitest": "^2.1.8"
+  },
+  "pnpm": {
+    "overrides": {
+      "playwright-core": "1.54.2"
+    }
   }
 }

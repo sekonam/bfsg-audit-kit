@@ -1,0 +1,40 @@
+<!doctype html>
+<!--
+  FIXTURE — product detail page.
+  Planted: <select> without a label, add-to-cart button labelled only by an icon.
+-->
+<html lang="de">
+  <head>
+    <meta charset="utf-8" />
+    <meta name="viewport" content="width=device-width, initial-scale=1" />
+    <meta name="generator" content="Shopware" />
+    <link rel="stylesheet" href="/bundles/storefront/assets/theme.css" />
+    <title>Roter Schuh – Musterschuhe</title>
+    <script type="application/ld+json">
+      { "@context": "https://schema.org", "@type": "Product", "name": "Roter Schuh" }
+    </script>
+    <style>
+      body { font-family: system-ui, sans-serif; color: #222; background: #fff; }
+      .hint { color: #b0b0b0; background: #ffffff; }
+    </style>
+  </head>
+  <body class="is-ctl-product">
+    <header class="header sw-header">
+      <a href="/">Musterschuhe</a>
+      <a href="/warenkorb.html">Warenkorb</a>
+    </header>
+    <main class="content-main">
+      <h1>Roter Schuh</h1>
+      <img src="/img/rot.png" alt="Roter Schuh, Seitenansicht" width="300" height="300" />
+      <p class="price">79,00 €</p>
+      <p class="hint">inkl. MwSt.</p>
+      <form action="/warenkorb.html" method="get">
+        <select name="groesse">
+          <option>40</option>
+          <option>41</option>
+        </select>
+        <button type="submit" class="btn-buy add-to-cart">In den Warenkorb</button>
+      </form>
+    </main>
+  </body>
+</html>

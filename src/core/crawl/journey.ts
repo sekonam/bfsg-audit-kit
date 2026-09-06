@@ -21,13 +21,22 @@ export interface JourneyHints {
   readonly productLinkCount?: number;
 }
 
+/**
+ * Optional file extension. Shopware and Shopify use extensionless paths, but
+ * OXID, JTL and many older German shops still serve `/warenkorb.html`, so a
+ * segment match must tolerate one.
+ */
+const EXT = '(?:\\.[a-z]{2,5})?';
+
+const segment = (alternatives: string): RegExp =>
+  new RegExp(`(^|/)(${alternatives})${EXT}(/|$|\\?)`, 'i');
+
 const PATTERNS: readonly { journey: Journey; re: RegExp }[] = [
-  // Checkout first: /checkout/cart must be a cart, so cart patterns are checked
-  // before the generic checkout patterns below.
-  { journey: 'cart', re: /(^|\/)(warenkorb|cart|basket|korb|checkout\/cart)(\/|$|\?)/i },
+  // Cart first: /checkout/cart is a cart, not a checkout.
+  { journey: 'cart', re: segment('warenkorb|cart|basket|korb|checkout/cart') },
   {
     journey: 'checkout',
-    re: /(^|\/)(checkout|kasse|kaufabwicklung|bestellung|bestellabschluss|onepage)(\/|$|\?)/i,
+    re: segment('checkout|kasse|kaufabwicklung|bestellung|bestellabschluss|onepage'),
   },
   {
     journey: 'product',
@@ -35,7 +44,7 @@ const PATTERNS: readonly { journey: Journey; re: RegExp }[] = [
   },
   {
     journey: 'category',
-    re: /(^|\/)(collections?|kategorien?|categor(y|ies)|shop|sortiment|c|catalog(ue)?|produkte)(\/|$|\?)/i,
+    re: segment('collections?|kategorien?|categor(y|ies)|shop|sortiment|c|catalog(ue)?|produkte'),
   },
 ];
 

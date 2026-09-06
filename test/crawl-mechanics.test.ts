@@ -255,6 +255,12 @@ describe('classifyJourney', () => {
     expect(classifyJourney('https://shop.de/checkout/cart')).toBe('cart');
   });
 
+  it('tolerates a file extension, as OXID and JTL shops still use one', () => {
+    expect(classifyJourney('https://shop.de/warenkorb.html')).toBe('cart');
+    expect(classifyJourney('https://shop.de/checkout.php')).toBe('checkout');
+    expect(classifyJourney('https://shop.de/collections/schuhe.html')).toBe('category');
+  });
+
   it('recognises product detail pages', () => {
     for (const path of [
       '/products/roter-schuh',

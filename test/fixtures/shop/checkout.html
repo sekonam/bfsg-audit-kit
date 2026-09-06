@@ -1,0 +1,42 @@
+<!doctype html>
+<!--
+  FIXTURE — checkout page. The worst page by design: an unlabelled checkout is
+  the defect that makes an order un-completable with a screen reader.
+  Planted: an e-mail input with no label at all, a country <select> with no
+  label, an AGB checkbox labelled only by an adjacent <span>, two inputs
+  labelled by placeholder alone (which axe ACCEPTS - the manual pass catches
+  it), a required-field rule stated by colour alone, and user-scalable=no.
+-->
+<html lang="de">
+  <head>
+    <meta charset="utf-8" />
+    <meta name="viewport" content="width=device-width, initial-scale=1, user-scalable=no" />
+    <meta name="generator" content="Shopware" />
+    <link rel="stylesheet" href="/bundles/storefront/assets/theme.css" />
+    <title>Kasse – Musterschuhe</title>
+    <style>
+      body { font-family: system-ui, sans-serif; color: #222; background: #fff; }
+      .hint { color: #b0b0b0; background: #ffffff; }
+      .required { color: #ff8080; background: #ffffff; }
+    </style>
+  </head>
+  <body class="is-ctl-checkout">
+    <header class="header sw-header"><a href="/">Musterschuhe</a></header>
+    <main class="content-main">
+      <h1>Kasse</h1>
+      <form action="/bestellung" method="post">
+        <input type="text" name="vorname" placeholder="Vorname" />
+        <input type="text" name="nachname" placeholder="Nachname" />
+        <input type="email" name="email" />
+        <select name="land">
+          <option>Deutschland</option>
+          <option>Österreich</option>
+        </select>
+        <input type="checkbox" name="agb" />
+        <span>Ich akzeptiere die AGB</span>
+        <p class="required">Rot markierte Felder sind Pflichtfelder.</p>
+        <button type="submit">Zahlungspflichtig bestellen</button>
+      </form>
+    </main>
+  </body>
+</html>

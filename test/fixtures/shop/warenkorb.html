@@ -1,0 +1,33 @@
+<!doctype html>
+<!--
+  FIXTURE — cart page.
+  Planted: quantity input without a label, remove button without an accessible name.
+-->
+<html lang="de">
+  <head>
+    <meta charset="utf-8" />
+    <meta name="viewport" content="width=device-width, initial-scale=1" />
+    <meta name="generator" content="Shopware" />
+    <link rel="stylesheet" href="/bundles/storefront/assets/theme.css" />
+    <title>Warenkorb – Musterschuhe</title>
+    <style>
+      body { font-family: system-ui, sans-serif; color: #222; background: #fff; }
+      .hint { color: #b0b0b0; background: #ffffff; }
+    </style>
+  </head>
+  <body class="is-ctl-checkout">
+    <header class="header sw-header"><a href="/">Musterschuhe</a></header>
+    <main class="content-main">
+      <h1>Warenkorb</h1>
+      <table class="cart-table">
+        <tr>
+          <td>Roter Schuh</td>
+          <td><input type="number" name="menge" value="1" /></td>
+          <td><button type="button" class="remove">&times;</button></td>
+        </tr>
+      </table>
+      <p class="hint">Zwischensumme: 79,00 €</p>
+      <a href="/checkout.html" class="btn-checkout">Zur Kasse</a>
+    </main>
+  </body>
+</html>

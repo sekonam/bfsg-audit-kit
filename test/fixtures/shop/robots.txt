@@ -1,0 +1,6 @@
+# FIXTURE robots.txt
+User-agent: *
+Disallow: /intern
+Crawl-delay: 1
+
+Sitemap: /sitemap.xml

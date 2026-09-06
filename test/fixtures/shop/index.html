@@ -1,0 +1,75 @@
+<!doctype html>
+<!--
+  FIXTURE — synthetic German shop with deliberately planted accessibility
+  defects. Never a copy of a real shop. Used so no test ever touches a live site.
+
+  Planted on this page:
+    - button without an accessible name (icon cart button)   -> button-name
+    - link without text (icon link)                          -> link-name
+    - image without alt                                      -> image-alt
+    - insufficient colour contrast on the price hint         -> color-contrast
+    - no skip link                                           -> bypass
+-->
+<html lang="de">
+  <head>
+    <meta charset="utf-8" />
+    <meta name="viewport" content="width=device-width, initial-scale=1" />
+    <meta name="generator" content="Shopware" />
+    <link rel="stylesheet" href="/bundles/storefront/assets/theme.css" />
+    <title>Musterschuhe – Startseite</title>
+    <style>
+      body {
+        font-family: system-ui, sans-serif;
+        margin: 0;
+        color: #222;
+        background: #fff;
+      }
+      .header {
+        display: flex;
+        justify-content: space-between;
+        padding: 1rem;
+        background: #f5f5f5;
+      }
+      .hint {
+        color: #b0b0b0;
+        background: #ffffff;
+      }
+      .teaser {
+        padding: 1rem;
+      }
+    </style>
+  </head>
+  <body class="is-ctl-home">
+    <header class="header sw-header">
+      <a href="/"><strong>Musterschuhe</strong></a>
+      <nav class="main-navigation">
+        <ul>
+          <li><a href="/collections/schuhe.html">Schuhe</a></li>
+          <li><a href="/ueber-uns.html">Über uns</a></li>
+          <li><a href="/intern/geheim.html">Intern</a></li>
+        </ul>
+      </nav>
+      <button class="header-cart-btn" type="button">
+        <svg width="24" height="24" aria-hidden="true"><circle cx="12" cy="12" r="10" /></svg>
+      </button>
+      <a href="/warenkorb.html" class="header-cart-link">
+        <svg width="24" height="24" aria-hidden="true"><rect width="20" height="20" /></svg>
+      </a>
+    </header>
+
+    <main class="content-main">
+      <h1>Willkommen bei Musterschuhe</h1>
+      <section class="teaser">
+        <img src="/img/teaser.png" width="200" height="100" />
+        <p>Handgefertigte Schuhe aus Deutschland.</p>
+        <p class="hint">Alle Preise inkl. MwSt. zzgl. Versandkosten.</p>
+        <a href="/collections/schuhe.html">Zur Kategorie</a>
+      </section>
+    </main>
+
+    <footer class="footer">
+      <p class="hint">© 2026 Musterschuhe GmbH</p>
+      <a href="/impressum.html">Impressum</a>
+    </footer>
+  </body>
+</html>
