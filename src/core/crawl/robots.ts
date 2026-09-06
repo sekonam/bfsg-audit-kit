@@ -1,0 +1,172 @@
+/**
+ * robots.txt parsing and path matching.
+ *
+ * Implements the group/longest-match semantics of RFC 9309 as used by the
+ * major crawlers: the most specific matching user-agent group wins, within a
+ * group the longest matching rule wins, and Allow beats Disallow on a tie.
+ * `*` and `$` wildcards are supported.
+ *
+ * Written rather than taken from a package because this is the single check
+ * that keeps the crawler lawful and welcome, and it has to be test-covered
+ * line by line.
+ */
+
+export interface RobotsGroup {
+  readonly agents: readonly string[];
+  readonly allow: readonly string[];
+  readonly disallow: readonly string[];
+  readonly crawlDelayMs: number | undefined;
+}
+
+export interface RobotsRules {
+  readonly groups: readonly RobotsGroup[];
+  readonly sitemaps: readonly string[];
+  /** True when no robots.txt could be read and everything is allowed by default. */
+  readonly permissiveDefault: boolean;
+}
+
+export const ALLOW_ALL: RobotsRules = { groups: [], sitemaps: [], permissiveDefault: true };
+export const DENY_ALL: RobotsRules = {
+  groups: [{ agents: ['*'], allow: [], disallow: ['/'], crawlDelayMs: undefined }],
+  sitemaps: [],
+  permissiveDefault: false,
+};
+
+export function parseRobots(text: string): RobotsRules {
+  const groups: RobotsGroup[] = [];
+  const sitemaps: string[] = [];
+
+  let agents: string[] = [];
+  let allow: string[] = [];
+  let disallow: string[] = [];
+  let crawlDelayMs: number | undefined;
+  let expectingAgents = false;
+
+  const flush = (): void => {
+    if (agents.length > 0) {
+      groups.push({ agents, allow, disallow, crawlDelayMs });
+    }
+    agents = [];
+    allow = [];
+    disallow = [];
+    crawlDelayMs = undefined;
+  };
+
+  for (const rawLine of text.split(/\r?\n/)) {
+    const line = rawLine.split('#')[0]!.trim();
+    if (line === '') continue;
+    const idx = line.indexOf(':');
+    if (idx === -1) continue;
+    const field = line.slice(0, idx).trim().toLowerCase();
+    const value = line.slice(idx + 1).trim();
+
+    switch (field) {
+      case 'user-agent':
+        // A new user-agent line after rules starts a new group; consecutive
+        // user-agent lines share one group.
+        if (!expectingAgents) flush();
+        agents.push(value.toLowerCase());
+        expectingAgents = true;
+        break;
+      case 'allow':
+        if (value !== '') allow.push(value);
+        expectingAgents = false;
+        break;
+      case 'disallow':
+        // "Disallow:" with an empty value means "allow everything" and is
+        // deliberately NOT recorded as a rule.
+        if (value !== '') disallow.push(value);
+        expectingAgents = false;
+        break;
+      case 'crawl-delay': {
+        const seconds = Number.parseFloat(value);
+        if (Number.isFinite(seconds) && seconds >= 0) crawlDelayMs = Math.round(seconds * 1000);
+        expectingAgents = false;
+        break;
+      }
+      case 'sitemap':
+        sitemaps.push(value);
+        break;
+      default:
+        expectingAgents = false;
+        break;
+    }
+  }
+  flush();
+
+  return { groups, sitemaps, permissiveDefault: false };
+}
+
+/**
+ * Build rules from an HTTP response to /robots.txt.
+ *
+ * - 2xx: parse the body.
+ * - 4xx (including 404): no robots.txt, everything allowed.
+ * - anything else (5xx, network error): treated as DENY ALL. A server we cannot
+ *   ask is a server we do not crawl.
+ */
+export function robotsFromResponse(status: number, body: string): RobotsRules {
+  if (status >= 200 && status < 300) return parseRobots(body);
+  if (status >= 400 && status < 500) return ALLOW_ALL;
+  return DENY_ALL;
+}
+
+/** The bare product token of a User-Agent string: "BfsgAuditBot/0.1 (+…)" → "bfsgauditbot". */
+export function agentToken(userAgent: string): string {
+  return (userAgent.split('/')[0] ?? userAgent).trim().toLowerCase();
+}
+
+function selectGroup(rules: RobotsRules, userAgent: string): RobotsGroup | undefined {
+  const token = agentToken(userAgent);
+  let specific: RobotsGroup | undefined;
+  let wildcard: RobotsGroup | undefined;
+  for (const group of rules.groups) {
+    for (const agent of group.agents) {
+      if (agent === '*') {
+        wildcard ??= group;
+      } else if (token === agent || token.startsWith(agent)) {
+        // Longest (most specific) matching agent wins.
+        if (!specific || agent.length > Math.max(...specific.agents.map((a) => a.length))) {
+          specific = group;
+        }
+      }
+    }
+  }
+  return specific ?? wildcard;
+}
+
+/** Convert a robots.txt path pattern into an anchored regular expression. */
+export function patternToRegExp(pattern: string): RegExp {
+  const anchored = pattern.endsWith('$');
+  const body = anchored ? pattern.slice(0, -1) : pattern;
+  const escaped = body.replace(/[.+?^${}()|[\]\\]/g, '\\$&').replace(/\*/g, '.*');
+  return new RegExp(`^${escaped}${anchored ? '$' : ''}`);
+}
+
+function matchLength(pattern: string, path: string): number {
+  return patternToRegExp(pattern).test(path) ? pattern.replace(/\$$/, '').length : -1;
+}
+
+/**
+ * Is `path` (a path + query, e.g. "/produkte?p=2") crawlable for this agent?
+ *
+ * Longest matching rule wins; Allow wins ties, which is what lets a site say
+ * "Disallow: /admin" plus "Allow: /admin/public".
+ */
+export function isAllowed(rules: RobotsRules, userAgent: string, path: string): boolean {
+  const group = selectGroup(rules, userAgent);
+  if (!group) return true;
+
+  let bestAllow = -1;
+  let bestDisallow = -1;
+  for (const rule of group.allow) bestAllow = Math.max(bestAllow, matchLength(rule, path));
+  for (const rule of group.disallow) bestDisallow = Math.max(bestDisallow, matchLength(rule, path));
+
+  if (bestDisallow === -1) return true;
+  return bestAllow >= bestDisallow;
+}
+
+/** Crawl-delay declared for this agent, in milliseconds, if any. */
+export function crawlDelayFor(rules: RobotsRules, userAgent: string): number | undefined {
+  return selectGroup(rules, userAgent)?.crawlDelayMs;
+}
