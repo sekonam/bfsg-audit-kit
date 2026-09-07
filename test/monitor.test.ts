@@ -268,7 +268,7 @@ describe('regression report', () => {
     // `scrollable-region-focusable`. The end-to-end run cannot cover this —
     // it re-scans an unchanged shop, so every delta table renders empty.
     regressionNarrow = await auditHtmlDocument(regressionHtml, {
-      viewport: { width: 375, height: 812 },
+      viewport: { width: 320, height: 640 },
     });
     clean = await auditHtmlDocument(
       renderRegressionReportHtml(
@@ -283,7 +283,7 @@ describe('regression report', () => {
     expect(regression.consoleErrors).toEqual([]);
   });
 
-  it('is still accessible at 375 px, where its tables actually scroll', () => {
+  it('is still accessible at 320 px, the WCAG reflow width, where its tables scroll', () => {
     expect(describeViolations(regressionNarrow)).toBe('');
     expect(regressionNarrow.documentOverflow.scrollWidth).toBeLessThanOrEqual(
       regressionNarrow.documentOverflow.clientWidth,

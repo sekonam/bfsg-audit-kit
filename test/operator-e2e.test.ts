@@ -30,7 +30,14 @@ import { SCOPE_NOTE_DE } from '../src/core/report/rdg.ts';
  * No third-party site is ever contacted; the shop is on 127.0.0.1.
  */
 
-const MOBILE = { width: 375, height: 812 } as const;
+/**
+ * 320 CSS px, not 375. That is the width WCAG 1.4.10 Reflow names, and it is a
+ * criterion these very documents tell the customer to have checked. Auditing
+ * only at desktop hid three genuine failures: the report's scroll containers
+ * were not keyboard-reachable, a shop URL in a screenshot caption scrolled the
+ * whole page sideways, and a contact e-mail did the same in the statement.
+ */
+const REFLOW = { width: 320, height: 640 } as const;
 
 /** Rule ids planted in `test/fixtures/shop`, each documented in the fixture. */
 const PLANTED_RULES = [
@@ -45,22 +52,30 @@ const PLANTED_RULES = [
 
 let run: OperatorRun;
 let report: DocumentAudit;
-let reportMobile: DocumentAudit;
 let statement: DocumentAudit;
 let draft: DocumentAudit;
 let regression: DocumentAudit;
+let reportNarrow: DocumentAudit;
+let statementNarrow: DocumentAudit;
+let draftNarrow: DocumentAudit;
+let regressionNarrow: DocumentAudit;
 let reportHtml: string;
 let statementHtml: string;
 let draftHtml: string;
 
 beforeAll(async () => {
   run = await runOperatorFlow();
-  [report, reportMobile, statement, draft, regression] = await Promise.all([
+  [report, statement, draft, regression] = await Promise.all([
     auditHtmlFile(run.reportHtml),
-    auditHtmlFile(run.reportHtml, { viewport: MOBILE }),
     auditHtmlFile(run.statementHtml),
     auditHtmlFile(run.draftStatementHtml),
     auditHtmlFile(run.regressionHtml),
+  ]);
+  [reportNarrow, statementNarrow, draftNarrow, regressionNarrow] = await Promise.all([
+    auditHtmlFile(run.reportHtml, { viewport: REFLOW }),
+    auditHtmlFile(run.statementHtml, { viewport: REFLOW }),
+    auditHtmlFile(run.draftStatementHtml, { viewport: REFLOW }),
+    auditHtmlFile(run.regressionHtml, { viewport: REFLOW }),
   ]);
   [reportHtml, statementHtml, draftHtml] = await Promise.all([
     readFile(run.reportHtml, 'utf8'),
@@ -109,10 +124,13 @@ describe('the operator run itself', () => {
 
 describe.each([
   ['bericht.html', () => report],
-  ['bericht.html at 375 px', () => reportMobile],
   ['barrierefreiheitserklaerung.html', () => statement],
   ['barrierefreiheitserklaerung.html (ENTWURF)', () => draft],
   ['ueberwachungsbericht.html', () => regression],
+  ['bericht.html at 320 px', () => reportNarrow],
+  ['barrierefreiheitserklaerung.html at 320 px', () => statementNarrow],
+  ['barrierefreiheitserklaerung.html (ENTWURF) at 320 px', () => draftNarrow],
+  ['ueberwachungsbericht.html at 320 px', () => regressionNarrow],
 ])('the written document %s', (_name, get) => {
   it('has no axe violations at WCAG 2.1 AA', () => {
     expect(describeViolations(get())).toBe('');
@@ -138,6 +156,9 @@ describe.each([
   });
 
   it('never scrolls the page sideways', () => {
+    // WCAG 1.4.10 Reflow: no two-dimensional scrolling at 320 px. A
+    // `.table-scroll` region that scrolls INSIDE itself is the accepted
+    // pattern and is not measured here; the page scrolling is the failure.
     const { scrollWidth, clientWidth } = get().documentOverflow;
     expect(scrollWidth, 'Dokument läuft horizontal über').toBeLessThanOrEqual(clientWidth);
   });

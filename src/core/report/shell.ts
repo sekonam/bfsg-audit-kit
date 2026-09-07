@@ -48,7 +48,12 @@ body {
   line-height: 1.6;
 }
 .wrap { max-width: 62rem; margin: 0 auto; padding: 0 1.25rem 4rem; }
-a { color: var(--accent); }
+/* Every link in these documents is an address the customer supplied: a shop
+   URL, a contact e-mail, an authority website. Each is one long unbreakable
+   token, and an unbroken one scrolls the whole page sideways at 320 px — the
+   width WCAG 1.4.10 Reflow names, and a criterion this very toolkit tells the
+   customer to check. */
+a { color: var(--accent); word-break: break-word; }
 a:hover { text-decoration-thickness: 2px; }
 :focus-visible {
   outline: 3px solid var(--accent);
@@ -65,7 +70,11 @@ a:hover { text-decoration-thickness: 2px; }
   z-index: 10;
 }
 .skip-link:focus { left: 0; }
-h1, h2, h3, h4 { line-height: 1.25; margin: 2rem 0 0.5rem; }
+/* German compound nouns are long and unbreakable: "Überwachungsbericht" at
+   1.9rem does not fit 375 px, and without this the whole PAGE scrolled
+   sideways. Which words overflow depends on the platform's font, so this was
+   invisible on macOS and failed on Linux CI. */
+h1, h2, h3, h4 { line-height: 1.25; margin: 2rem 0 0.5rem; overflow-wrap: break-word; }
 h1 { font-size: 1.9rem; margin-top: 1.5rem; }
 h2 { font-size: 1.4rem; padding-top: 1rem; border-top: 1px solid var(--rule); }
 h3 { font-size: 1.15rem; }
@@ -83,7 +92,14 @@ li { margin: 0.25rem 0; }
 .meta dd { margin: 0; }
 table { border-collapse: collapse; width: 100%; }
 caption { text-align: left; font-weight: 600; padding: 0.5rem 0; }
-th, td { border: 1px solid var(--rule); padding: 0.5rem 0.65rem; text-align: left; vertical-align: top; }
+th, td { border: 1px solid var(--rule); padding: 0.5rem 0.65rem; text-align: left; vertical-align: top; overflow-wrap: break-word; }
+/* A shop URL is one long unbreakable token, and it sets the table's minimum
+   width. In PRINT the scroll container clips instead of scrolling, so an
+   unbreakable URL silently cost the PDF its right-hand columns: the journey
+   table sat at exactly the A4 printable width on one platform and over it on
+   another. word-break (unlike overflow-wrap: break-word) also shrinks the
+   min-content width, which is the number that decides this. */
+th code, td code { word-break: break-word; }
 th { background: var(--surface); }
 .numeric { text-align: right; font-variant-numeric: tabular-nums; }
 .badge {
@@ -116,7 +132,11 @@ th { background: var(--surface); }
 .instances td { word-break: break-word; }
 figure { margin: 0.75rem 0; }
 figure img { max-width: 100%; height: auto; border: 1px solid var(--rule); }
-figcaption { font-size: 0.875rem; color: var(--ink-muted); }
+/* The caption under a screenshot names the page the element was found on, and
+   a shop URL is one unbreakable token. Without this the PAGE scrolled sideways
+   at 320 px — the width WCAG 1.4.10 Reflow names, and a criterion this very
+   report tells the customer to check. */
+figcaption { font-size: 0.875rem; color: var(--ink-muted); word-break: break-word; }
 .notice { border-left: 4px solid var(--accent); background: var(--surface); padding: 0.75rem 1rem; margin: 1rem 0; }
 .toc ol { margin: 0.5rem 0; }
 footer.doc-footer { border-top: 1px solid var(--rule); margin-top: 3rem; padding-top: 1rem; color: var(--ink-muted); font-size: 0.9rem; }
@@ -136,6 +156,10 @@ code { background: var(--surface); padding: 0.05rem 0.3rem; border-radius: 0.2re
 @media print {
   body { font-size: 10.5pt; }
   .skip-link, .toc { display: none; }
+  /* The min-width exists to stop columns collapsing on a phone, where the
+     container scrolls. Paper does not scroll: it clips. Dropping the floor lets
+     every table shrink to its content and keeps the PDF whole. */
+  .instances { min-width: 0; }
   h2 { break-before: auto; break-after: avoid; }
   .finding { break-inside: avoid; }
   a { color: var(--ink); text-decoration: underline; }

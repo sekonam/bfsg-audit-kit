@@ -211,7 +211,15 @@ exactly that rule at 375 px while passing at 1280 px — the tables only overflo
 every a11y test ran at desktop width until `operator-e2e.test.ts` audited the written file at both.
 The narrow-viewport rules in the same stylesheet stack the header definition list and give the
 instance tables a `min-width`, because four columns of quoted markup squeezed into 375 px produced
-600 px-tall rows. **Everything is inline** — the
+600 px-tall rows.
+
+**Every document is audited at 320 CSS px**, the width WCAG 1.4.10 Reflow names — and a criterion
+these documents themselves tell the customer to have checked. Everything the customer supplies is
+one long unbreakable token — a shop URL, a contact e-mail, an authority website, a German compound
+noun in an `h1` — and each of those scrolled the whole page sideways until `word-break` was applied
+to links, `figcaption` and inline `code`, and `overflow-wrap` to headings. Which of them overflows
+depends on the platform's font metrics: two of these failures were invisible on macOS and only
+appeared on Linux CI. **Everything is inline** — the
 documents are handed over as single files and must render offline, as an attachment and in the
 PDF printer. There is no JavaScript and no external request.
 
