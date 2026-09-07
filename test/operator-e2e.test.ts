@@ -147,6 +147,37 @@ describe('the embedded element screenshots', () => {
     expect(brokenImages(report).map((i) => i.src)).toEqual([]);
   });
 
+  it('are of a shop whose own images actually load', async () => {
+    // "Resolves" is not the same as "shows something", and the gap is not
+    // hypothetical: while the fixture referenced images that 404'd, every
+    // image-alt finding in the report illustrated itself with a picture of a
+    // broken-image icon — a screenshot that loaded perfectly and showed the
+    // customer nothing. The screenshots are only worth asserting on if the
+    // scanned page had something to photograph, so that is asserted directly.
+    for (const path of ['/', '/collections/schuhe.html']) {
+      const html = await (await fetch(new URL(path, run.origin))).text();
+      const sources = [...html.matchAll(/<img[^>]+src="([^"]+)"/g)]
+        .map((match) => match[1])
+        .filter((src): src is string => typeof src === 'string');
+      expect(sources.length, path).toBeGreaterThan(0);
+      for (const src of sources) {
+        const response = await fetch(new URL(src, run.origin));
+        expect(response.status, `${path} → ${src}`).toBe(200);
+      }
+    }
+  });
+
+  it('have non-degenerate dimensions', () => {
+    for (const image of report.images) {
+      expect(image.naturalWidth, image.src).toBeGreaterThanOrEqual(8);
+      expect(image.naturalHeight, image.src).toBeGreaterThanOrEqual(8);
+    }
+    const biggest = Math.max(...report.images.map((i) => i.naturalWidth * i.naturalHeight));
+    expect(biggest, 'kein Screenshot zeigt ein Element von nennenswerter Größe').toBeGreaterThan(
+      100 * 50,
+    );
+  });
+
   it('exist as files next to the report', async () => {
     const written = new Set(await readdir(run.screenshotDir));
     for (const image of report.images) {
@@ -253,6 +284,8 @@ describe('the screenshot directory', () => {
     for (const name of names) {
       expect(name, 'Dateiname stammt aus fremdem Input').toMatch(/^[a-zA-Z0-9._-]+\.png$/);
       expect(name).not.toContain('..');
+      const info = await stat(join(run.screenshotDir, name));
+      expect(info.size, name).toBeGreaterThan(100);
     }
   });
 });
