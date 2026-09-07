@@ -7,7 +7,11 @@ import {
   statementWarnings,
   StatementValidationError,
 } from '../src/core/statement/model.ts';
-import { renderStatementHtml, STATEMENT_SECTIONS } from '../src/core/statement/render.ts';
+import {
+  providerNameLine,
+  renderStatementHtml,
+  STATEMENT_SECTIONS,
+} from '../src/core/statement/render.ts';
 import { RdgBoundaryError } from '../src/core/report/rdg.ts';
 import { sampleStatement, sampleStatementInput } from './helpers/sample-statement.ts';
 
@@ -214,5 +218,36 @@ describe('statement URL and phone safety — findings from review', () => {
     const { html } = renderStatementHtml(answers);
     expect(html).not.toMatch(/href="javascript:/i);
     expect(html).toMatch(/href="#"/);
+  });
+});
+
+describe('providerNameLine', () => {
+  const provider = (name: string, legalForm?: string) => {
+    const { legalForm: _ignored, ...rest } = sampleStatement().provider;
+    return { ...rest, name, ...(legalForm ? { legalForm } : {}) } as never;
+  };
+
+  it('does not repeat a legal form the name already carries', () => {
+    // Merchants type their registered name into the name field and the legal
+    // form into the legal-form field, because both are asked for. Appending
+    // unconditionally printed "Musterschuhe GmbH (GmbH)" at the top of a
+    // legally required public statement.
+    expect(providerNameLine(provider('Musterschuhe GmbH', 'GmbH'))).toBe('Musterschuhe GmbH');
+    expect(providerNameLine(provider('Muster AG', 'AG'))).toBe('Muster AG');
+    expect(providerNameLine(provider('Muster GmbH & Co. KG', 'GmbH & Co. KG'))).toBe(
+      'Muster GmbH & Co. KG',
+    );
+  });
+
+  it('appends it when the name does not', () => {
+    expect(providerNameLine(provider('Musterschuhe', 'GmbH'))).toBe('Musterschuhe (GmbH)');
+  });
+
+  it('omits it entirely when none was given', () => {
+    expect(providerNameLine(provider('Musterschuhe'))).toBe('Musterschuhe');
+  });
+
+  it('does not match a legal form buried inside a word', () => {
+    expect(providerNameLine(provider('AGENTUR Muster', 'AG'))).toBe('AGENTUR Muster (AG)');
   });
 });

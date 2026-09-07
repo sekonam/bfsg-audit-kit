@@ -50,6 +50,26 @@ function draftBanner(): string {
     </div>`;
 }
 
+/**
+ * Provider name, with the legal form appended only when it is not already part
+ * of the name.
+ *
+ * Merchants type their full registered name — "Musterschuhe GmbH" — into the
+ * name field and "GmbH" into the legal-form field, because both are asked for.
+ * Appending unconditionally printed "Musterschuhe GmbH (GmbH)" at the top of a
+ * legally required public statement.
+ */
+export function providerNameLine(provider: StatementAnswers['provider']): string {
+  const form = provider.legalForm?.trim();
+  if (!form) return provider.name;
+  const name = provider.name.trim();
+  const alreadyNamed = new RegExp(
+    `(^|[\\s(])${form.replace(/[.*+?^${}()|[\\]\\\\]/g, '\\$&')}\\b`,
+    'i',
+  ).test(name);
+  return alreadyNamed ? name : `${name} (${form})`;
+}
+
 function addressBlock(address: StatementAnswers['provider']['address']): string {
   return `${escapeHtml(address.street)}<br />${escapeHtml(address.postalCode)} ${escapeHtml(
     address.city,
@@ -102,7 +122,7 @@ export function renderStatementHtml(
     erreichbar unter <a href="${escapeHtml(safeHref(answers.service.url))}">${escapeHtml(answers.service.url)}</a>.</p>
     <p>Anbieter:</p>
     <address>
-      ${escapeHtml(answers.provider.name)}${answers.provider.legalForm ? ` (${escapeHtml(answers.provider.legalForm)})` : ''}<br />
+      ${escapeHtml(providerNameLine(answers.provider))}<br />
       ${addressBlock(answers.provider.address)}<br />
       E-Mail: <a href="mailto:${escapeHtml(answers.provider.email)}">${escapeHtml(answers.provider.email)}</a>
       ${answers.provider.phone ? `<br />Telefon: <a href="tel:${escapeHtml(safeTel(answers.provider.phone).replace(/[^0-9+]/g, ''))}">${escapeHtml(answers.provider.phone)}</a>` : ''}
