@@ -5,7 +5,7 @@ import { pathToFileURL } from 'node:url';
 import { chromium, type Browser } from 'playwright';
 import { runOperatorFlow } from '../test/helpers/operator-run.ts';
 import { REPO_ROOT } from '../test/helpers/cli.ts';
-import { escapeHtml } from '../src/core/report/format.ts';
+import { escapeHtml, formatDateTimeDe } from '../src/core/report/format.ts';
 
 /**
  * Visual verification of the customer-facing deliverables.
@@ -91,7 +91,8 @@ function indexHtml(shots: readonly Shot[], runDir: string): string {
         .map(
           (shot) => `
           <figure>
-            <figcaption>${escapeHtml(shot.viewportLabel)} — ${shot.pixelHeight} px hoch</figcaption>
+            <figcaption>${escapeHtml(shot.viewportLabel)} — ${shot.pixelHeight} px hoch,
+            Ausschnitt; klicken für das ganze Bild</figcaption>
             <a href="screens/${escapeHtml(shot.file)}"><img src="screens/${escapeHtml(shot.file)}" alt="Bildschirmfoto: ${escapeHtml(first.documentLabel)}, ${escapeHtml(shot.viewportLabel)}" /></a>
           </figure>`,
         )
@@ -110,7 +111,11 @@ function indexHtml(shots: readonly Shot[], runDir: string): string {
       body { font-family: system-ui, sans-serif; margin: 0 auto; max-width: 76rem; padding: 1.5rem; color: #1f2328; }
       .row { display: flex; gap: 1.5rem; align-items: flex-start; flex-wrap: wrap; }
       figure { margin: 0; flex: 1 1 20rem; }
-      img { width: 100%; border: 1px solid #d5d9e0; }
+      /* A 375 px document is 16 000 px tall; shown whole it dwarfs the desktop
+         column and neither is readable. Show the top at a comparable scale and
+         link through to the full PNG. */
+      img { width: 100%; max-height: 44rem; object-fit: cover; object-position: top center;
+            border: 1px solid #d5d9e0; }
       figcaption { font-size: 0.9rem; color: #5c6470; padding-bottom: 0.4rem; }
       h2 { border-top: 1px solid #d5d9e0; padding-top: 1rem; }
       code { background: #f6f7f9; padding: 0.1rem 0.3rem; }
@@ -118,7 +123,7 @@ function indexHtml(shots: readonly Shot[], runDir: string): string {
   </head>
   <body>
     <h1>Sichtprüfung der erzeugten Dokumente</h1>
-    <p>Erzeugt am ${escapeHtml(new Date().toISOString())} aus einem vollständigen Lauf gegen den
+    <p>Erzeugt am ${escapeHtml(formatDateTimeDe(new Date().toISOString()))} aus einem vollständigen Lauf gegen den
     lokalen Fixture-Shop. Die Dokumente selbst liegen unter <code>${escapeHtml(runDir)}</code>.</p>
     ${sections}
   </body>
