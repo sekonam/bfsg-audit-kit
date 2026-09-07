@@ -307,9 +307,13 @@ describe('robots-disallowed addresses never reach the report', () => {
         }),
       ),
     );
-    expect(html).toContain('3 Adressen wurden');
-    expect(html).toContain('durch <code>robots.txt</code> ausgeschlossen');
+    // The whole clause, not a fragment: an earlier version double-printed the
+    // count ("2 2 Adressen wurden") and a substring assertion still passed.
+    expect(html).toContain(
+      '<p>3 Adressen wurden durch <code>robots.txt</code> ausgeschlossen und deshalb nicht abgerufen.',
+    );
     expect(html).toContain('sind hier bewusst nicht aufgeführt');
+    expect(html).not.toContain('3 3 ');
   });
 
   it('says nothing about exclusions when there were none', () => {
@@ -323,6 +327,7 @@ describe('robots-disallowed addresses never reach the report', () => {
     const html = collapse(
       renderReportHtml(sampleScan({ crawl: { ...sampleScan().crawl, robotsExcluded: 1 } })),
     );
-    expect(html).toContain('Eine Adresse wurde');
+    expect(html).toContain('<p>Eine Adresse wurde durch <code>robots.txt</code> ausgeschlossen');
+    expect(html).not.toContain('1 Eine Adresse');
   });
 });

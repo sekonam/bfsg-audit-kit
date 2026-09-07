@@ -358,7 +358,9 @@ function methodSection(scan: ScanResult): string {
     <code>User-Agent</code> mit Kontaktadresse erkennbar.</p>
     ${
       excluded > 0
-        ? `<p>${plural(excluded, 'Eine Adresse wurde', `${formatNumberDe(excluded)} Adressen wurden`)}
+        ? // Not plural(): that helper prefixes the count, and this sentence needs
+          // the number inside a different clause in each form.
+          `<p>${excluded === 1 ? 'Eine Adresse wurde' : `${formatNumberDe(excluded)} Adressen wurden`}
            durch <code>robots.txt</code> ausgeschlossen und deshalb nicht abgerufen. Die betroffenen
            Adressen sind hier bewusst nicht aufgeführt; sie stehen im Protokoll des Prüflaufs.</p>`
         : ''

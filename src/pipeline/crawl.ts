@@ -161,6 +161,10 @@ export async function crawlShop(
     visited.add(url);
 
     if (!(await mayVisit(url))) {
+      // Everything reaching tryFetch is already same-site http(s) — extractLinks
+      // filters the queue and the journey fallbacks are built from `origin` —
+      // so the only way mayVisit refuses here is robots.txt. The address is
+      // logged for the operator and counted for the report, never recorded.
       robotsExcluded += 1;
       log(`übersprungen (robots.txt): ${url}`);
       return undefined;
