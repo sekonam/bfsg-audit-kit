@@ -60,7 +60,11 @@ describe('crawl against the fixture shop', () => {
   it('honours robots.txt: /intern is never requested', () => {
     expect(server.requests).toContain('/robots.txt');
     expect(server.requests.filter((p) => p.startsWith('/intern'))).toEqual([]);
-    expect(outcome.result.crawl.skipped.some((s) => s.reason.includes('robots.txt'))).toBe(true);
+    // Counted, not listed. The count is what the report prints; the addresses
+    // themselves must not reach any generated document — see
+    // CrawlResult.robotsExcluded and operator-e2e.test.ts.
+    expect(outcome.result.crawl.robotsExcluded).toBeGreaterThan(0);
+    expect(JSON.stringify(outcome.result.crawl.skipped)).not.toContain('/intern');
   });
 
   it('does not follow a redirect onto a robots-disallowed page', () => {
@@ -69,10 +73,14 @@ describe('crawl against the fixture shop', () => {
     // disallowed hop is refused instead of fetched and then discarded.
     expect(server.requests).toContain('/weiterleitung');
     expect(server.requests.filter((p) => p.startsWith('/intern'))).toEqual([]);
-    expect(
-      outcome.result.crawl.skipped.some((s) => s.reason.includes('Weiterleitung auf')),
-      JSON.stringify(outcome.result.crawl.skipped),
-    ).toBe(true);
+    // The URL we asked for is the shop's own and is named; the target it
+    // redirected to is not, for the same reason as above.
+    const redirect = outcome.result.crawl.skipped.find((s) => s.url.endsWith('/weiterleitung'));
+    expect(redirect, JSON.stringify(outcome.result.crawl.skipped)).toBeDefined();
+    expect(redirect?.reason).toContain(
+      'Weiterleitung auf eine ausgeschlossene oder fremde Adresse',
+    );
+    expect(redirect?.reason).not.toContain('/intern');
   });
 
   it('identifies itself in the User-Agent on every single request', () => {

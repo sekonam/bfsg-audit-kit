@@ -14,7 +14,7 @@ import {
   severityLabelDe,
   severityMeaningDe,
 } from './format.ts';
-import { renderDocument } from './shell.ts';
+import { renderDocument, tableRegion } from './shell.ts';
 import { assertNoLegalClaims, SCOPE_NOTE_DE } from './rdg.ts';
 
 /**
@@ -100,17 +100,19 @@ function instancesTable(finding: Finding, max: number, screenshotBase: string): 
        </figure>`
     : '';
 
+  const caption = `Beispiele (${plural(finding.instances.length, 'Fundstelle', 'Fundstellen')} insgesamt)`;
   return `
     ${figure}
-    <div class="table-scroll">
-      <table class="instances">
-        <caption>Beispiele (${plural(finding.instances.length, 'Fundstelle', 'Fundstellen')} insgesamt)</caption>
+    ${tableRegion(
+      `${caption} — ${finding.titleDe}`,
+      `<table class="instances">
+        <caption>${escapeHtml(caption)}</caption>
         <thead>
           <tr><th scope="col">Seitentyp</th><th scope="col">Seite</th><th scope="col">Element</th><th scope="col">Markup</th></tr>
         </thead>
         <tbody>${rows}</tbody>
-      </table>
-    </div>
+      </table>`,
+    )}
     ${more}`;
 }
 
@@ -184,9 +186,9 @@ function journeyTable(scan: ScanResult): string {
          </tr>`
       : '';
 
-  return `
-    <div class="table-scroll">
-      <table>
+  return tableRegion(
+    'Die fünf kritischen Nutzungswege',
+    `<table>
         <caption>Die fünf kritischen Nutzungswege</caption>
         <thead>
           <tr>
@@ -195,8 +197,8 @@ function journeyTable(scan: ScanResult): string {
           </tr>
         </thead>
         <tbody>${rows}${otherRow}</tbody>
-      </table>
-    </div>`;
+      </table>`,
+  );
 }
 
 function summarySection(scan: ScanResult): string {
@@ -244,11 +246,14 @@ function summarySection(scan: ScanResult): string {
     ${
       severityRows === ''
         ? '<p>In den geprüften Seiten wurden keine automatisch erkennbaren Verstöße gegen WCAG 2.1 AA gefunden.</p>'
-        : `<div class="table-scroll"><table>
+        : tableRegion(
+            'Befunde nach Einstufung',
+            `<table>
              <caption>Befunde nach Einstufung</caption>
              <thead><tr><th scope="col">Einstufung</th><th scope="col">Befunde</th><th scope="col">Fundstellen</th><th scope="col">Bedeutung</th></tr></thead>
              <tbody>${severityRows}</tbody>
-           </table></div>`
+           </table>`,
+          )
     }`;
 }
 
@@ -338,6 +343,11 @@ function methodSection(scan: ScanResult): string {
     )
     .join('');
 
+  // A COUNT, never a list. `Disallow:` is where a shop keeps its staging areas
+  // and back-office paths, and this document gets forwarded and sometimes
+  // published. See CrawlResult.robotsExcluded.
+  const excluded = scan.crawl.robotsExcluded ?? 0;
+
   return `
     <h2 id="methodik">Methodik</h2>
     <p>Die Seiten wurden mit einem Browser geladen und automatisiert geprüft. Es wurden
@@ -346,8 +356,16 @@ function methodSection(scan: ScanResult): string {
     ${scan.crawl.robotsRespected ? 'beachtet' : 'auf ausdrückliche Anweisung nicht beachtet'};
     zwischen zwei Abrufen lag mindestens eine Wartezeit, und der Prüfbot war im
     <code>User-Agent</code> mit Kontaktadresse erkennbar.</p>
-    <div class="table-scroll">
-      <table>
+    ${
+      excluded > 0
+        ? `<p>${plural(excluded, 'Eine Adresse wurde', `${formatNumberDe(excluded)} Adressen wurden`)}
+           durch <code>robots.txt</code> ausgeschlossen und deshalb nicht abgerufen. Die betroffenen
+           Adressen sind hier bewusst nicht aufgeführt; sie stehen im Protokoll des Prüflaufs.</p>`
+        : ''
+    }
+    ${tableRegion(
+      'Eingesetzte Werkzeuge',
+      `<table>
         <caption>Eingesetzte Werkzeuge</caption>
         <thead><tr><th scope="col">Werkzeug</th><th scope="col">Version</th></tr></thead>
         <tbody>${Object.entries(scan.toolVersions)
@@ -356,16 +374,19 @@ function methodSection(scan: ScanResult): string {
               `<tr><th scope="row">${escapeHtml(name)}</th><td>${escapeHtml(version)}</td></tr>`,
           )
           .join('')}</tbody>
-      </table>
-    </div>
+      </table>`,
+    )}
     ${
       skippedRows === ''
         ? ''
-        : `<div class="table-scroll"><table>
+        : tableRegion(
+            'Nicht geprüfte Seiten',
+            `<table>
              <caption>Nicht geprüfte Seiten (${plural(skipped.length, 'Eintrag', 'Einträge')})</caption>
              <thead><tr><th scope="col">Adresse</th><th scope="col">Grund</th></tr></thead>
              <tbody>${skippedRows}</tbody>
-           </table></div>`
+           </table>`,
+          )
     }`;
 }
 

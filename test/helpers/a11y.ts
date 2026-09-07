@@ -44,16 +44,33 @@ export interface DocumentAudit {
   readonly headings: { level: number; text: string }[];
   readonly firstFocusable: { tag: string; text: string; visible: boolean } | null;
   readonly images: AuditedImage[];
+  /**
+   * Page-level horizontal overflow. A document whose BODY scrolls sideways is
+   * unusable on a phone; a `.table-scroll` region that scrolls internally is
+   * fine and is not measured here.
+   */
+  readonly documentOverflow: { scrollWidth: number; clientWidth: number };
 }
+
+export interface AuditOptions {
+  /** Defaults to 1280×900. Pass 375 to audit the document as a phone sees it. */
+  readonly viewport?: { width: number; height: number };
+  readonly extra?: (page: Page) => Promise<void>;
+}
+
+const DEFAULT_VIEWPORT = { width: 1280, height: 900 } as const;
 
 async function auditPage(
   load: (page: Page) => Promise<void>,
-  extra?: (page: Page) => Promise<void>,
+  options: AuditOptions = {},
 ): Promise<DocumentAudit> {
+  const extra = options.extra;
   const browser: Browser = await chromium.launch({ headless: true });
   try {
     // axe-core/playwright requires a page created from an explicit context.
-    const context = await browser.newContext({ viewport: { width: 1280, height: 900 } });
+    const context = await browser.newContext({
+      viewport: { ...DEFAULT_VIEWPORT, ...options.viewport },
+    });
     const page = await context.newPage();
     const consoleErrors: string[] = [];
     const failedRequests: string[] = [];
@@ -125,6 +142,10 @@ async function auditPage(
       headings,
       firstFocusable,
       images,
+      documentOverflow: await page.evaluate(() => ({
+        scrollWidth: document.documentElement.scrollWidth,
+        clientWidth: document.documentElement.clientWidth,
+      })),
     };
   } finally {
     await browser.close();
@@ -136,7 +157,9 @@ export async function auditHtmlDocument(
   html: string,
   extra?: (page: Page) => Promise<void>,
 ): Promise<DocumentAudit> {
-  return auditPage((page) => page.setContent(html, { waitUntil: 'load' }), extra);
+  return auditPage((page) => page.setContent(html, { waitUntil: 'load' }), {
+    ...(extra && { extra }),
+  });
 }
 
 /**
@@ -149,12 +172,12 @@ export async function auditHtmlDocument(
  */
 export async function auditHtmlFile(
   filePath: string,
-  extra?: (page: Page) => Promise<void>,
+  options: AuditOptions = {},
 ): Promise<DocumentAudit> {
   const url = pathToFileURL(filePath).href;
   return auditPage(async (page) => {
     await page.goto(url, { waitUntil: 'load' });
-  }, extra);
+  }, options);
 }
 
 /** Readable failure output: axe's own message plus the offending markup. */

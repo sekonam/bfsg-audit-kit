@@ -119,6 +119,20 @@ figcaption { font-size: 0.875rem; color: var(--ink-muted); }
 footer.doc-footer { border-top: 1px solid var(--rule); margin-top: 3rem; padding-top: 1rem; color: var(--ink-muted); font-size: 0.9rem; }
 code { background: var(--surface); padding: 0.05rem 0.3rem; border-radius: 0.2rem; word-break: break-word; }
 .table-scroll { overflow-x: auto; }
+/* The scroll container is keyboard-focusable, so it needs a visible focus ring
+   of its own — see tableRegion() for why it is focusable at all. */
+.table-scroll:focus-visible { outline: 3px solid var(--accent); outline-offset: 2px; }
+/* Four columns of quoted markup squeezed into 375 px produced 600 px-tall rows.
+   Give the table a floor and let the container scroll, which is what it is for. */
+.instances { min-width: 32rem; }
+@media (max-width: 40rem) {
+  /* Below this width the label column no longer fits beside its value, so the
+     definition list stacks instead of half-wrapping into a ragged two-column
+     layout where some rows break and others do not. */
+  .meta div { display: block; }
+  .meta dt { min-width: 0; }
+  .meta dd { margin-bottom: 0.4rem; }
+}
 @media print {
   body { font-size: 10.5pt; }
   .skip-link, .toc { display: none; }
@@ -131,6 +145,26 @@ code { background: var(--surface); padding: 0.05rem 0.3rem; border-radius: 0.2re
   * { animation: none !important; transition: none !important; }
 }
 `;
+
+/**
+ * Wrap a table in a horizontally scrollable, keyboard-reachable region.
+ *
+ * `tabindex="0"` is not decoration. A container with `overflow-x: auto` that no
+ * keyboard user can focus is unreachable content under WCAG 2.1.1, and axe
+ * reports it as `scrollable-region-focusable` (serious). Our own audit report
+ * failed exactly that rule at 375 px while passing at 1280 px — the tables only
+ * overflow on a phone, and every a11y test ran at desktop width. An
+ * accessibility report that is unusable on a phone is the same self-refuting
+ * deliverable this shell exists to prevent.
+ *
+ * `role="region"` needs an accessible name, so the table's own caption is
+ * repeated as `aria-label`.
+ */
+export function tableRegion(label: string, tableHtml: string): string {
+  return `<div class="table-scroll" role="region" tabindex="0" aria-label="${escapeHtml(
+    label,
+  )}">${tableHtml}</div>`;
+}
 
 export interface ShellOptions {
   /** BCP-47 language of the document content. Always German here. */

@@ -30,9 +30,9 @@ const STATUS_TEXT: Record<StatementAnswers['conformance']['status'], string> = {
   vollstaendig:
     'Die genannten Anforderungen werden nach dem Ergebnis der durchgeführten Prüfung vollständig erfüllt.',
   teilweise:
-    'Die genannten Anforderungen werden überwiegend erfüllt. Die unter „Bekannte Barrieren" aufgeführten Punkte sind derzeit nicht barrierefrei.',
+    'Die genannten Anforderungen werden überwiegend erfüllt. Die unter „Bekannte Barrieren“ aufgeführten Punkte sind derzeit nicht barrierefrei.',
   nicht:
-    'Die genannten Anforderungen werden derzeit nicht vollständig erfüllt. Die unter „Bekannte Barrieren" aufgeführten Punkte werden bearbeitet.',
+    'Die genannten Anforderungen werden derzeit nicht vollständig erfüllt. Die unter „Bekannte Barrieren“ aufgeführten Punkte werden bearbeitet.',
 };
 
 const BASIS_TEXT: Record<StatementAnswers['meta']['basis'], string> = {

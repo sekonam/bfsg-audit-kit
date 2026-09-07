@@ -221,7 +221,7 @@ export function statementWarnings(answers: StatementAnswers, today = new Date())
     answers.conformance.knownBarriers.length === 0
   ) {
     warnings.push(
-      'Der Status ist nicht „vollständig", es sind aber keine bekannten Barrieren aufgeführt. Anlage 3 erwartet an dieser Stelle konkrete Angaben.',
+      'Der Status ist nicht „vollständig“, es sind aber keine bekannten Barrieren aufgeführt. Anlage 3 erwartet an dieser Stelle konkrete Angaben.',
     );
   }
   return warnings;

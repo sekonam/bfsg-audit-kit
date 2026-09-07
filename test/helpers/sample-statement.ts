@@ -41,7 +41,7 @@ export function sampleStatementInput(): unknown {
       knownBarriers: [
         {
           description:
-            'Die eingebundene Karte auf der Seite „Filialen" ist nicht tastaturbedienbar.',
+            'Die eingebundene Karte auf der Seite „Filialen“ ist nicht tastaturbedienbar.',
           reason: 'Es handelt sich um einen Dienst eines Drittanbieters.',
           alternative: 'Alle Filialadressen stehen als Text auf derselben Seite.',
           plannedFix: 'Ersatz des Kartendienstes bis Q2/2027 geplant.',

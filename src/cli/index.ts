@@ -1,5 +1,5 @@
 #!/usr/bin/env node
-import { readFile, readdir } from 'node:fs/promises';
+import { access, readFile, readdir } from 'node:fs/promises';
 import { dirname, resolve } from 'node:path';
 import { join } from 'node:path';
 import { Command, Option } from 'commander';
@@ -10,6 +10,7 @@ import { formatNumberDe } from '../core/report/format.ts';
 import { conformanceBand } from '../core/findings/score.ts';
 import { scanShop } from '../pipeline/scan.ts';
 import {
+  REPORT_PDF,
   SCAN_JSON,
   SCREENSHOT_DIR,
   shopOutputDir,
@@ -57,6 +58,12 @@ function overridesFrom(options: Record<string, unknown>): ConfigOverrides {
 }
 
 const log = (message: string): void => console.log(message);
+
+const fileExists = async (path: string): Promise<boolean> =>
+  access(path).then(
+    () => true,
+    () => false,
+  );
 
 // --------------------------------------------------------------------------
 politenessOptions(
@@ -195,7 +202,18 @@ politenessOptions(
     screenshotDir: join(outDir, SCREENSHOT_DIR),
     log,
   });
-  await writeReport(outDir, result, { operatorName: config.operatorName });
+  // monitor rewrites the customer-facing report from the fresh scan, so it must
+  // rewrite it with the SAME options `report` used. Dropping --shop-name here
+  // silently retitled the customer's report back to the bare host, and leaving
+  // an existing bericht.pdf untouched left two files in one folder claiming to
+  // be the same report while saying different things — with the PDF being the
+  // one that gets attached to a mail.
+  await writeReport(outDir, result, {
+    shopName: options['shopName'] as string | undefined,
+    operatorName: config.operatorName,
+    operatorContact: config.operatorEmail,
+    pdf: await fileExists(join(outDir, REPORT_PDF)),
+  });
 
   const { diff, htmlPath } = await writeRegressionReport(outDir, baseline, result, {
     shopName: options['shopName'] as string | undefined,

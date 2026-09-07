@@ -96,8 +96,14 @@ export function sampleScan(overrides: Partial<ScanResult> = {}): ScanResult {
         },
       ],
       skipped: [
-        { url: 'https://muster-shop.de/intern', reason: 'durch robots.txt ausgeschlossen' },
+        {
+          url: 'https://muster-shop.de/produkte/blau',
+          reason: 'identisches Template wie https://muster-shop.de/produkte/rot',
+        },
       ],
+      // A count, never a list — robots-disallowed addresses must not reach a
+      // document the merchant forwards. See CrawlResult.robotsExcluded.
+      robotsExcluded: 2,
       robotsRespected: true,
       startedAt: '2026-09-06T08:00:00.000Z',
       finishedAt: '2026-09-06T08:02:00.000Z',

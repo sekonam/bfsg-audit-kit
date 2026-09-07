@@ -118,8 +118,25 @@ export interface CrawlResult {
   readonly platform: Platform;
   readonly platformEvidence: readonly string[];
   readonly pages: readonly SampledPage[];
-  /** URLs discovered but not fetched, and why. */
+  /**
+   * URLs discovered but not fetched, and why.
+   *
+   * Addresses that `robots.txt` put out of bounds are deliberately NOT in here
+   * — see `robotsExcluded`.
+   */
   readonly skipped: readonly { url: string; reason: string }[];
+  /**
+   * How many discovered addresses `robots.txt` excluded. A count, not a list.
+   *
+   * The report is a document the merchant forwards and sometimes publishes, and
+   * `Disallow:` is where a shop keeps its staging areas, internal tools and
+   * back-office paths. Reproducing that list in a deliverable would hand the
+   * whole of it to every recipient, and it would invite the one question the
+   * crawler exists to make unnecessary: did you fetch it? The count keeps the
+   * report honest about coverage without republishing the shop's own
+   * exclusion list. The operator sees each excluded address in the run log.
+   */
+  readonly robotsExcluded: number;
   readonly robotsRespected: boolean;
   readonly startedAt: string;
   readonly finishedAt: string;

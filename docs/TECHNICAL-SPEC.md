@@ -61,6 +61,15 @@ gate rejects is never requested at all, and a redirect leaving the site is refus
 The URL that was actually rendered is what the DOM signature, the journey, the link base and the
 report all use — a report naming a URL nobody scanned is worse than no report.
 
+**Disallowed addresses are counted, never recorded.** `CrawlResult.robotsExcluded` is a number;
+the URLs themselves appear only in the run log, never in `crawl.skipped`, never in `scan.json`,
+never in a report. `Disallow:` is where a shop keeps its staging areas, internal tools and
+back-office paths, and the report is a document the merchant forwards and sometimes publishes —
+reproducing the exclusion list would hand all of it to every recipient and invite the one question
+the crawler exists to make unnecessary. The methodology section prints the count and says the
+addresses are deliberately omitted. Same for a redirect the gate refused: the URL we asked for is
+the shop's own and is named; the target it bounced to is not.
+
 ### 2.2 Politeness policy as a type
 
 `createPolicy()` (`src/core/crawl/policy.ts`) throws without an absolute http(s) contact URL, and
@@ -179,7 +188,17 @@ All customer-facing output is **German**. Code, tests and these docs are English
 Both the report and the Barrierefreiheitserklärung render through one shell
 (`src/core/report/shell.ts`) that supplies `lang`, a unique `<title>`, a skip link as the first
 focusable element, exactly one `<main>`, header/footer landmarks, a visible focus indicator, an
-inline stylesheet with documented contrast ratios, and print rules. **Everything is inline** — the
+inline stylesheet with documented contrast ratios, and print rules.
+
+**Every table goes through `tableRegion()`**, which wraps it in
+`<div class="table-scroll" role="region" tabindex="0" aria-label="…">`. The `tabindex` is not
+decoration: a container with `overflow-x: auto` that no keyboard user can focus is unreachable
+content under WCAG 2.1.1, and axe reports it as `scrollable-region-focusable`. The report failed
+exactly that rule at 375 px while passing at 1280 px — the tables only overflow on a phone, and
+every a11y test ran at desktop width until `operator-e2e.test.ts` audited the written file at both.
+The narrow-viewport rules in the same stylesheet stack the header definition list and give the
+instance tables a `min-width`, because four columns of quoted markup squeezed into 375 px produced
+600 px-tall rows. **Everything is inline** — the
 documents are handed over as single files and must render offline, as an attachment and in the
 PDF printer. There is no JavaScript and no external request.
 
@@ -266,11 +285,17 @@ are reported too, because they often explain a finding that vanished without bei
 `bfsg monitor` writes `ueberwachungsbericht.html` and `diff.json` and **exits 2 on a regression** —
 that is the notification mechanism, because no email channel exists.
 
+It also rewrites `bericht.html` from the fresh scan, and must do so **with the same options
+`report` used**: `--shop-name` is passed through, and `bericht.pdf` is reprinted if one already
+exists. Without that, monitoring silently retitled the customer's report back to the bare host and
+left an HTML and a PDF in one folder claiming to be the same report while saying different things
+— with the PDF being the copy that gets attached to a mail.
+
 ## 7. File layout
 
 ```
 out/<shop-id>/
-  scan.json                        machine-readable result
+  scan.json                        machine-readable result (no disallowed URLs)
   baseline.json                    comparison point for monitoring
   bericht.html / bericht.pdf       the customer-facing report
   ueberwachungsbericht.html        regression report
@@ -289,6 +314,20 @@ German filenames are deliberate: these are attached to a mail or handed over on 
 - **Generated documents are verified, not asserted.** `test/helpers/a11y.ts` loads them in a real
   Chromium and runs axe; the report, the statement (published and ENTWURF) and the regression
   report (both forms) must produce zero violations at WCAG 2.1 AA.
+- **The written file is audited, not only the render output.** `auditHtmlDocument()` checks the
+  string a renderer returned; `auditHtmlFile()` checks the file the CLI wrote, over `file://`, from
+  its real directory. `test/operator-e2e.test.ts` runs one complete engagement —
+  scan → report --pdf → statement --pdf → statement (ENTWURF) → baseline → monitor — and then
+  audits the artefacts: axe at 1280 px **and 375 px**, no console errors or failed requests, every
+  embedded screenshot resolving to a file that exists, both PDFs tagged and non-trivial, the
+  ENTWURF stamp present or absent on the written file, every planted fixture defect present, the
+  scope note present, and no robots-disallowed address anywhere. That layer — file writing,
+  relative paths, PDF printing, the ENTWURF gate — is invisible to a string-level test and is where
+  four defects were found.
+- **Somebody looks at the documents.** `pnpm run demo:screens` performs the same operator run and
+  photographs every generated document at 1280 px and 375 px into `.artifacts/demo-screens/`
+  (gitignored) with an index page. axe answers "is it accessible", not "would a merchant pay for
+  this".
 - The CLI is tested as a subprocess, including the refusals: no contact URL, no override reason.
 - Coverage floor 80% on `src/core/**`, enforced in CI.
 

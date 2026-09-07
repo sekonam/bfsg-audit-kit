@@ -108,6 +108,8 @@ export async function crawlShop(
   }
 
   const skipped: { url: string; reason: string }[] = [];
+  // Counted, never listed: see CrawlResult.robotsExcluded.
+  let robotsExcluded = 0;
   const pages: SampledPage[] = [];
   const fetched = new Map<string, FetchedPage>();
   const seenSignatures = new Map<string, string>();
@@ -159,7 +161,8 @@ export async function crawlShop(
     visited.add(url);
 
     if (!(await mayVisit(url))) {
-      skipped.push({ url, reason: 'durch robots.txt ausgeschlossen' });
+      robotsExcluded += 1;
+      log(`übersprungen (robots.txt): ${url}`);
       return undefined;
     }
     // --- Gate 2: page budget. This is the only place it is enforced, so that
@@ -180,9 +183,14 @@ export async function crawlShop(
       return page;
     } catch (error) {
       if (error instanceof NavigationBlockedError) {
+        // The URL we asked for is the shop's own and safe to name; the target
+        // it redirected to is either robots-disallowed or a foreign host, and
+        // is named only in the run log.
+        robotsExcluded += 1;
+        log(`übersprungen (Weiterleitung auf ${error.blockedUrl}): ${url}`);
         skipped.push({
           url,
-          reason: `Weiterleitung auf ${error.blockedUrl} — durch robots.txt ausgeschlossen oder fremder Host`,
+          reason: 'Weiterleitung auf eine ausgeschlossene oder fremde Adresse',
         });
         return undefined;
       }
@@ -277,6 +285,7 @@ export async function crawlShop(
     platformEvidence,
     pages,
     skipped,
+    robotsExcluded,
     robotsRespected: policy.respectRobots,
     startedAt,
     finishedAt: new Date().toISOString(),

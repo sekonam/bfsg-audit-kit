@@ -9,7 +9,7 @@ import {
   severityLabelDe,
 } from '../report/format.ts';
 import { assertNoLegalClaims, SCOPE_ONE_LINER_DE } from '../report/rdg.ts';
-import { renderDocument } from '../report/shell.ts';
+import { renderDocument, tableRegion } from '../report/shell.ts';
 import type { FindingDelta, ScanDiff } from './diff.ts';
 
 /**
@@ -55,9 +55,9 @@ function deltaRow(delta: FindingDelta): string {
 
 function deltaTable(caption: string, deltas: readonly FindingDelta[]): string {
   if (deltas.length === 0) return '';
-  return `
-    <div class="table-scroll">
-      <table>
+  return tableRegion(
+    caption,
+    `<table>
         <caption>${escapeHtml(caption)}</caption>
         <thead>
           <tr>
@@ -67,8 +67,8 @@ function deltaTable(caption: string, deltas: readonly FindingDelta[]): string {
           </tr>
         </thead>
         <tbody>${deltas.map(deltaRow).join('')}</tbody>
-      </table>
-    </div>`;
+      </table>`,
+  );
 }
 
 export interface RegressionReportOptions {

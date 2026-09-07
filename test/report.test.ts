@@ -274,3 +274,55 @@ describe('escaping and URL safety — findings from review', () => {
     expect(html).toContain(`${instances}</span>`);
   });
 });
+
+describe('scrollable tables are reachable and named', () => {
+  const html = renderReportHtml(sampleScan());
+
+  it('makes every scroll container keyboard-focusable and labelled', () => {
+    // A container with overflow-x: auto that no keyboard user can focus is
+    // unreachable content (WCAG 2.1.1). The report failed axe's
+    // `scrollable-region-focusable` at 375 px while passing at 1280 px, because
+    // the tables only overflow on a phone and every a11y test ran at desktop
+    // width. Pinned here so the wrapper cannot be re-introduced bare.
+    const wrappers = html.match(/<div class="table-scroll"[^>]*>/g) ?? [];
+    expect(wrappers.length).toBeGreaterThan(2);
+    for (const wrapper of wrappers) {
+      expect(wrapper, wrapper).toContain('tabindex="0"');
+      expect(wrapper, wrapper).toContain('role="region"');
+      expect(wrapper, wrapper).toMatch(/aria-label="[^"]+"/);
+    }
+  });
+});
+
+describe('robots-disallowed addresses never reach the report', () => {
+  it('reports the count and not the list', () => {
+    const html = collapse(
+      renderReportHtml(
+        sampleScan({
+          crawl: {
+            ...sampleScan().crawl,
+            robotsExcluded: 3,
+            skipped: [{ url: 'https://muster-shop.de/intern/admin', reason: 'nur zur Sicherheit' }],
+          },
+        }),
+      ),
+    );
+    expect(html).toContain('3 Adressen wurden');
+    expect(html).toContain('durch <code>robots.txt</code> ausgeschlossen');
+    expect(html).toContain('sind hier bewusst nicht aufgeführt');
+  });
+
+  it('says nothing about exclusions when there were none', () => {
+    const html = collapse(
+      renderReportHtml(sampleScan({ crawl: { ...sampleScan().crawl, robotsExcluded: 0 } })),
+    );
+    expect(html).not.toContain('bewusst nicht aufgeführt');
+  });
+
+  it('uses the singular for exactly one', () => {
+    const html = collapse(
+      renderReportHtml(sampleScan({ crawl: { ...sampleScan().crawl, robotsExcluded: 1 } })),
+    );
+    expect(html).toContain('Eine Adresse wurde');
+  });
+});

@@ -161,6 +161,7 @@ export async function scanShop(startUrl: string, options: ScanOptions): Promise<
         platformEvidence: crawl.platformEvidence,
         pages: crawl.pages,
         skipped: crawl.skipped,
+        robotsExcluded: crawl.robotsExcluded,
         robotsRespected: crawl.robotsRespected,
         startedAt: crawl.startedAt,
         finishedAt: crawl.finishedAt,
