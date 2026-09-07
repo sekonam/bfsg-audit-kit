@@ -50,6 +50,11 @@ function draftBanner(): string {
     </div>`;
 }
 
+/** True when `char` would continue a word — used for the match boundaries below. */
+function isWordish(char: string): boolean {
+  return char !== '' && /[\p{L}\p{N}]/u.test(char);
+}
+
 /**
  * Provider name, with the legal form appended only when it is not already part
  * of the name.
@@ -58,19 +63,34 @@ function draftBanner(): string {
  * name field and "GmbH" into the legal-form field, because both are asked for.
  * Appending unconditionally printed "Musterschuhe GmbH (GmbH)" at the top of a
  * legally required public statement.
+ *
+ * Deliberately NOT a regular expression. `legalForm` is free operator text and
+ * German legal forms are full of regex metacharacters — `e.K.`, `e.V.`,
+ * `UG (haftungsbeschränkt)`. A first attempt built a RegExp out of it and hit
+ * all three failure modes at once: `.` matched any character so "Muster eXK."
+ * swallowed the form, the parentheses of `UG (haftungsbeschränkt)` became a
+ * capture group so the form was duplicated anyway, and an unbalanced bracket in
+ * the operator's input threw a SyntaxError the CLI does not catch. A plain scan
+ * has none of those.
+ *
+ * "Already part of the name" means the form appears at a word boundary: at the
+ * start, or after whitespace or `(`, and not followed by another letter or
+ * digit. So "Muster GmbH" + "mbH" still gets its suffix.
  */
 export function providerNameLine(provider: StatementAnswers['provider']): string {
   const form = provider.legalForm?.trim();
   if (!form) return provider.name;
   const name = provider.name.trim();
-  // `\\b` only holds when the form ends in a word character. German forms often
-  // do not — "Muster e.K." + "e.K." produced "Muster e.K. (e.K.)".
-  const boundary = /\w$/.test(form) ? '\\b' : '(?!\\w)';
-  const alreadyNamed = new RegExp(
-    `(^|[\\s(])${form.replace(/[.*+?^${}()|[\\]\\\\]/g, '\\$&')}${boundary}`,
-    'i',
-  ).test(name);
-  return alreadyNamed ? name : `${name} (${form})`;
+
+  const haystack = name.toLowerCase();
+  const needle = form.toLowerCase();
+  for (let at = haystack.indexOf(needle); at !== -1; at = haystack.indexOf(needle, at + 1)) {
+    const before = at === 0 ? '' : (haystack[at - 1] ?? '');
+    const after = haystack[at + needle.length] ?? '';
+    const startsCleanly = before === '' || before === '(' || /\s/.test(before);
+    if (startsCleanly && !isWordish(after)) return name;
+  }
+  return `${name} (${form})`;
 }
 
 function addressBlock(address: StatementAnswers['provider']['address']): string {

@@ -126,7 +126,7 @@ export interface CrawlResult {
    */
   readonly skipped: readonly { url: string; reason: string }[];
   /**
-   * How many discovered addresses `robots.txt` excluded. A count, not a list.
+   * How many DISCOVERED addresses `robots.txt` excluded. A count, not a list.
    *
    * The report is a document the merchant forwards and sometimes publishes, and
    * `Disallow:` is where a shop keeps its staging areas, internal tools and
@@ -135,8 +135,18 @@ export interface CrawlResult {
    * crawler exists to make unnecessary: did you fetch it? The count keeps the
    * report honest about coverage without republishing the shop's own
    * exclusion list. The operator sees each excluded address in the run log.
+   *
+   * Counts robots.txt exclusions ONLY, because the report attributes it wholly
+   * to robots.txt. A refused redirect hop can also mean a foreign host or a
+   * redirect loop, so those go to `skipped` with a redacted reason instead.
+   * The start URL is excluded too: it is the operator's own argument, so it is
+   * named in `skipped` rather than silently counted.
+   *
+   * Optional: scans written before this field existed do not carry it, and
+   * those still list disallowed URLs in `skipped`. `methodSection` folds such
+   * entries into this count at render time rather than printing them.
    */
-  readonly robotsExcluded: number;
+  readonly robotsExcluded?: number;
   readonly robotsRespected: boolean;
   readonly startedAt: string;
   readonly finishedAt: string;

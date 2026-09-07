@@ -8,5 +8,6 @@ something to photograph. Before these files existed the fixture referenced image
 every screenshot of an `image-alt` finding was a picture of a broken-image icon — the assertion
 "the embedded screenshots resolve" passed while the report showed a customer an empty box.
 
-Regenerate with `node --experimental-strip-types scripts/make-fixture-images.ts`. Output is
-deterministic, so re-running it produces byte-identical files and no spurious diff.
+Regenerate with `node --experimental-strip-types scripts/make-fixture-images.ts`. The pixels are
+deterministic; the compressed bytes are not portable across Node versions, so re-run it only when
+the images should actually change and discard the diff otherwise.

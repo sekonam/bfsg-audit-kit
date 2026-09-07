@@ -1,6 +1,11 @@
 import { beforeAll, describe, expect, it } from 'vitest';
 import { renderStatementHtml } from '../src/core/statement/render.ts';
-import { auditHtmlDocument, describeViolations, type DocumentAudit } from './helpers/a11y.ts';
+import {
+  auditHtmlDocument,
+  describeViolations,
+  headingOrderJumps,
+  type DocumentAudit,
+} from './helpers/a11y.ts';
 import { sampleStatement } from './helpers/sample-statement.ts';
 
 /**
@@ -43,14 +48,7 @@ describe('the generated Barrierefreiheitserklärung is itself accessible', () =>
 
   it('has one h1 and a heading outline with no skipped levels', () => {
     expect(published.headings.filter((h) => h.level === 1)).toHaveLength(1);
-    let previous = 1;
-    for (const heading of published.headings) {
-      expect(
-        heading.level - previous,
-        `Sprung von h${previous} auf h${heading.level} bei "${heading.text}"`,
-      ).toBeLessThanOrEqual(1);
-      previous = heading.level;
-    }
+    expect(headingOrderJumps(published)).toEqual([]);
   });
 
   it('puts the skip link first in the keyboard order and makes it visible on focus', () => {

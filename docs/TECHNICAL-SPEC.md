@@ -70,6 +70,19 @@ the crawler exists to make unnecessary. The methodology section prints the count
 addresses are deliberately omitted. Same for a redirect the gate refused: the URL we asked for is
 the shop's own and is named; the target it bounced to is not.
 
+Three details the counter has to get right, because the report attributes it wholly to robots.txt:
+
+- **A refused redirect hop is _not_ counted.** The navigation guard refuses a hop for three
+  different reasons — robots.txt, a foreign host, or `MAX_REDIRECTS` — so folding them in
+  double-counted the page (it is in `skipped` too) and, under `--ignore-robots`, made the report
+  say robots.txt had been both ignored and the cause of an exclusion.
+- **The start URL is named, not counted.** It is the operator's own argument, already on their
+  screen, so it is not a leak — and an empty report with no stated cause is worse than one that
+  says why it is empty.
+- **The renderer redacts legacy scans.** Scans written before this field existed still carry the
+  URLs in `skipped`; `namesRobotsDisallowedAddress()` drops those rows at render time and folds
+  them into the count, so `bfsg report alt-scan.json` does not reopen the leak.
+
 ### 2.2 Politeness policy as a type
 
 `createPolicy()` (`src/core/crawl/policy.ts`) throws without an absolute http(s) contact URL, and
@@ -272,7 +285,14 @@ Two rules that are deliberately awkward:
 
 ### 5.4 PDF
 
-Chromium `page.pdf()` with `print` media emulation, `tagged: true` and `outline: true`. A tagged
+Chromium `page.pdf()` with `print` media emulation, `tagged: true` and `outline: true`. It prints
+to `<name>.teil` and renames on success: `page.pdf({path})` writes in place, so a crash or timeout
+mid-print left a truncated file at the customer-facing path.
+
+`overflow-x: auto` scrolls on screen and **clips on paper**, so a table wider than the printable
+width would silently lose its right-hand columns in the PDF. Every table fits A4 minus the 16 mm
+margins with ~160 px to spare, and `clippedInPrint()` fails the end-to-end test if a future column
+changes that. A tagged
 PDF is what makes headings and tables navigable for a screen reader; an untagged PDF of an
 accessibility report would be absurd. The test asserts `/StructTreeRoot` is present in the output.
 
@@ -287,9 +307,15 @@ that is the notification mechanism, because no email channel exists.
 
 It also rewrites `bericht.html` from the fresh scan, and must do so **with the same options
 `report` used**: `--shop-name` is passed through, and `bericht.pdf` is reprinted if one already
-exists. Without that, monitoring silently retitled the customer's report back to the bare host and
-left an HTML and a PDF in one folder claiming to be the same report while saying different things
-— with the PDF being the copy that gets attached to a mail.
+exists (`--no-pdf` opts out of the second browser launch). Without that, monitoring silently
+retitled the customer's report back to the bare host and left an HTML and a PDF in one folder
+claiming to be the same report while saying different things — with the PDF being the copy that
+gets attached to a mail.
+
+**Order matters:** the regression report and `diff.json` are written _before_ the report is
+rewritten. Rewriting the report also overwrites `scan.json`, which `readBaseline` falls back to
+when no `baseline.json` is set, so a failure while reprinting the PDF would otherwise leave a
+mutated baseline and no monitoring output at all.
 
 ## 7. File layout
 

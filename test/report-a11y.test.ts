@@ -1,6 +1,11 @@
 import { beforeAll, describe, expect, it } from 'vitest';
 import { renderReportHtml } from '../src/core/report/report.ts';
-import { auditHtmlDocument, describeViolations, type DocumentAudit } from './helpers/a11y.ts';
+import {
+  auditHtmlDocument,
+  describeViolations,
+  headingOrderJumps,
+  type DocumentAudit,
+} from './helpers/a11y.ts';
 import { sampleScan } from './helpers/sample-scan.ts';
 
 /**
@@ -40,14 +45,7 @@ describe('the generated report is itself accessible', () => {
     const h1s = audit.headings.filter((h) => h.level === 1);
     expect(h1s).toHaveLength(1);
 
-    let previous = 1;
-    for (const heading of audit.headings) {
-      expect(
-        heading.level - previous,
-        `Sprung von h${previous} auf h${heading.level} bei "${heading.text}"`,
-      ).toBeLessThanOrEqual(1);
-      previous = heading.level;
-    }
+    expect(headingOrderJumps(audit)).toEqual([]);
   });
 
   it('offers the skip link as the first thing keyboard focus reaches, and shows it', () => {

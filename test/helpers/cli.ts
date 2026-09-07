@@ -22,7 +22,7 @@ const CLI_ENTRY = join(REPO_ROOT, 'src', 'cli', 'index.ts');
  * here: the target is a fixture server on 127.0.0.1, so a 2 s delay between
  * requests would only slow down the test suite, never a stranger's server.
  */
-export const POLITE_TEST_ENV: Readonly<Record<string, string>> = {
+const POLITE_TEST_ENV: Readonly<Record<string, string>> = {
   BFSG_CONTACT_URL: 'https://beispiel.de/bot',
   BFSG_OPERATOR_NAME: 'Prüfstelle Muster',
   BFSG_MIN_REQUEST_INTERVAL_MS: '0',

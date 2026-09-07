@@ -253,5 +253,33 @@ describe('providerNameLine', () => {
 
   it('does not match a legal form buried inside a word', () => {
     expect(providerNameLine(provider('AGENTUR Muster', 'AG'))).toBe('AGENTUR Muster (AG)');
+    expect(providerNameLine(provider('Muster GmbH', 'mbH'))).toBe('Muster GmbH (mbH)');
+  });
+
+  it('handles legal forms full of regex metacharacters', () => {
+    // These are why the function does not build a RegExp out of operator input.
+    // The parentheses became a capture group, so the commonest German form was
+    // duplicated by the very code written to stop that.
+    expect(
+      providerNameLine(provider('Muster UG (haftungsbeschränkt)', 'UG (haftungsbeschränkt)')),
+    ).toBe('Muster UG (haftungsbeschränkt)');
+    // `.` matched any character, so a name that merely looked similar swallowed
+    // the legal form out of a legally required statement.
+    expect(providerNameLine(provider('Muster eXK.', 'e.K.'))).toBe('Muster eXK. (e.K.)');
+    expect(providerNameLine(provider('Muster e+K', 'e.K'))).toBe('Muster e+K (e.K)');
+  });
+
+  it('does not throw on operator input that is not a valid regular expression', () => {
+    // `legalForm` is a free-text field with no syntax validation. An unbalanced
+    // bracket used to throw SyntaxError, which the CLI does not catch — so
+    // `bfsg statement` died with a raw Node stack trace.
+    for (const form of ['UG (haftungsbeschränkt', 'Muster [', 'a\\', '*', '(?<']) {
+      expect(() => providerNameLine(provider('Musterfirma', form)), form).not.toThrow();
+      expect(providerNameLine(provider('Musterfirma', form))).toBe(`Musterfirma (${form})`);
+    }
+  });
+
+  it('finds the form on a later occurrence when the first one is buried', () => {
+    expect(providerNameLine(provider('AGENTUR Muster AG', 'AG'))).toBe('AGENTUR Muster AG');
   });
 });

@@ -333,8 +333,25 @@ function effortSection(scan: ScanResult): string {
     der tatsächliche Aufwand hängt vom Zustand des Themes und von eingesetzten Erweiterungen ab.</p>`;
 }
 
+/**
+ * True when a skip entry names an address `robots.txt` put out of bounds.
+ *
+ * Current scans never record those — the crawler counts them instead, see
+ * `CrawlResult.robotsExcluded`. But scans written before that change are still
+ * on disk and still carry the URLs verbatim, and `bfsg report alt-scan.json`
+ * would print them. So the renderer refuses to print such an entry and folds it
+ * into the count, which closes the leak for files that already exist.
+ *
+ * The start-URL entry is deliberately NOT matched: it names the address the
+ * operator typed, which is not a discovered path and not a leak — and an empty
+ * report with no stated cause is worse than one that says why it is empty.
+ */
+export function namesRobotsDisallowedAddress(entry: { url: string; reason: string }): boolean {
+  return /robots\.txt/i.test(entry.reason) && !/^Startadresse\b/.test(entry.reason);
+}
+
 function methodSection(scan: ScanResult): string {
-  const skipped = scan.crawl.skipped;
+  const skipped = scan.crawl.skipped.filter((entry) => !namesRobotsDisallowedAddress(entry));
   const skippedRows = skipped
     .slice(0, 20)
     .map(
@@ -346,7 +363,9 @@ function methodSection(scan: ScanResult): string {
   // A COUNT, never a list. `Disallow:` is where a shop keeps its staging areas
   // and back-office paths, and this document gets forwarded and sometimes
   // published. See CrawlResult.robotsExcluded.
-  const excluded = scan.crawl.robotsExcluded ?? 0;
+  const excluded =
+    (scan.crawl.robotsExcluded ?? 0) +
+    scan.crawl.skipped.filter(namesRobotsDisallowedAddress).length;
 
   return `
     <h2 id="methodik">Methodik</h2>

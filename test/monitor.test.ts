@@ -229,10 +229,12 @@ describe('diffScans', () => {
 
 describe('regression report', () => {
   let regression: DocumentAudit;
+  let regressionNarrow: DocumentAudit;
   let clean: DocumentAudit;
+  let worse: ScanResult;
 
   beforeAll(async () => {
-    const worse = withFindings(
+    worse = withFindings(
       baseline,
       [
         ...sampleFindings(),
@@ -257,9 +259,17 @@ describe('regression report', () => {
       ],
       '2026-10-06T08:00:00Z',
     );
-    regression = await auditHtmlDocument(
-      renderRegressionReportHtml(diffScans(baseline, worse), { shopName: 'Musterschuhe GmbH' }),
-    );
+    const regressionHtml = renderRegressionReportHtml(diffScans(baseline, worse), {
+      shopName: 'Musterschuhe GmbH',
+    });
+    regression = await auditHtmlDocument(regressionHtml);
+    // Audited at phone width too: the delta tables only overflow there, and it
+    // was exactly that width at which the audit report failed
+    // `scrollable-region-focusable`. The end-to-end run cannot cover this —
+    // it re-scans an unchanged shop, so every delta table renders empty.
+    regressionNarrow = await auditHtmlDocument(regressionHtml, {
+      viewport: { width: 375, height: 812 },
+    });
     clean = await auditHtmlDocument(
       renderRegressionReportHtml(
         diffScans(baseline, withFindings(baseline, sampleFindings(), '2026-10-06T08:00:00Z')),
@@ -271,6 +281,25 @@ describe('regression report', () => {
     expect(describeViolations(regression)).toBe('');
     expect(describeViolations(clean)).toBe('');
     expect(regression.consoleErrors).toEqual([]);
+  });
+
+  it('is still accessible at 375 px, where its tables actually scroll', () => {
+    expect(describeViolations(regressionNarrow)).toBe('');
+    expect(regressionNarrow.documentOverflow.scrollWidth).toBeLessThanOrEqual(
+      regressionNarrow.documentOverflow.clientWidth,
+    );
+  });
+
+  it('wraps its delta tables in a focusable, named scroll region', () => {
+    const html = renderRegressionReportHtml(diffScans(baseline, worse), {
+      shopName: 'Musterschuhe GmbH',
+    });
+    const wrappers = html.match(/<div class="table-scroll"[^>]*>/g) ?? [];
+    expect(wrappers.length).toBeGreaterThan(0);
+    for (const wrapper of wrappers) {
+      expect(wrapper, wrapper).toContain('tabindex="0"');
+      expect(wrapper, wrapper).toMatch(/aria-label="[^"]+"/);
+    }
   });
 
   it('answers the customer question in the first line', () => {

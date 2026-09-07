@@ -1,14 +1,17 @@
 import { afterAll, beforeAll, describe, expect, it } from 'vitest';
 import { readFile, readdir, stat } from 'node:fs/promises';
-import { basename, join } from 'node:path';
+import { readFileSync } from 'node:fs';
+import { basename, dirname, join } from 'node:path';
 import {
   auditHtmlFile,
   brokenImages,
+  clippedInPrint,
   describeViolations,
   headingOrderJumps,
   type DocumentAudit,
 } from './helpers/a11y.ts';
 import { runOperatorFlow, type OperatorRun } from './helpers/operator-run.ts';
+import { REPO_ROOT } from './helpers/cli.ts';
 import { SCREENSHOT_DIR } from '../src/pipeline/report.ts';
 import { SCOPE_NOTE_DE } from '../src/core/report/rdg.ts';
 
@@ -92,6 +95,14 @@ describe('the operator run itself', () => {
     ];
     for (const file of files) {
       expect((await stat(file)).size, basename(file)).toBeGreaterThan(0);
+    }
+    // The PDF printer writes to a `.teil` neighbour and renames; nothing may
+    // survive in the folder the operator hands over.
+    for (const dir of [run.shopDir, dirname(run.statementHtml)]) {
+      // `toContain` compares by equality and ignores asymmetric matchers, so
+      // filter explicitly rather than writing an assertion that cannot fail.
+      const leftovers = (await readdir(dir)).filter((name) => name.endsWith('.teil'));
+      expect(leftovers, dir).toEqual([]);
     }
   });
 });
@@ -199,6 +210,14 @@ describe('the printed PDFs', () => {
     expect(pdf.toString('latin1')).toContain('/StructTreeRoot');
   });
 
+  it('clips no table when printed to A4', async () => {
+    // `overflow-x: auto` scrolls on screen and clips on paper. Every table fits
+    // today with ~160 px to spare; this fails the moment a column is added,
+    // instead of quietly losing it in the file the customer receives.
+    expect(await clippedInPrint(run.reportHtml)).toEqual([]);
+    expect(await clippedInPrint(run.statementHtml)).toEqual([]);
+  });
+
   it('is never older than the HTML beside it', async () => {
     // `monitor` rewrites bericht.html from the fresh scan. If it does not
     // reprint bericht.pdf, the folder holds two files claiming to be the same
@@ -260,20 +279,56 @@ describe('robots.txt is honoured in the OUTPUT, not just in the crawl', () => {
       run.statementHtml,
       run.draftStatementHtml,
     ];
+    // Read the forbidden prefixes from the fixture's own robots.txt rather than
+    // hard-coding them, so changing the fixture cannot quietly weaken this.
+    const robots = await readFile(
+      join(REPO_ROOT, 'test', 'fixtures', 'shop', 'robots.txt'),
+      'utf8',
+    );
+    const disallowed = [...robots.matchAll(/^\s*Disallow:\s*(\S+)\s*$/gim)]
+      .map((match) => match[1])
+      .filter((path): path is string => typeof path === 'string' && path !== '/');
+    expect(disallowed.length, 'Die Fixture-robots.txt verbietet nichts mehr').toBeGreaterThan(0);
+
     for (const artefact of artefacts) {
       const text = await readFile(artefact, 'utf8');
-      expect(
-        text,
-        `${basename(artefact)} nennt eine durch robots.txt gesperrte Adresse`,
-      ).not.toMatch(/\/intern/);
+      for (const path of disallowed) {
+        expect(text, `${basename(artefact)} nennt die gesperrte Adresse ${path}`).not.toContain(
+          path,
+        );
+      }
     }
+    // The PDF is clean by construction — Chromium prints it from the very HTML
+    // file asserted above — so this only guards against an uncompressed stream
+    // carrying the string. Cheap, and it costs no PDF-parsing dependency.
     const pdf = (await readFile(run.reportPdf)).toString('latin1');
-    expect(pdf).not.toContain('/intern/geheim');
+    for (const path of disallowed) expect(pdf).not.toContain(path);
   });
 
-  it('still tells the customer that something was excluded', () => {
-    expect(reportHtml).toMatch(/robots\.txt/);
-    expect(reportHtml).toMatch(/ausgeschlossen/);
+  it('still tells the customer that something was excluded, and how many', () => {
+    // Asserting the specific sentence, not just the words "robots.txt" and
+    // "ausgeschlossen" — both of those appear elsewhere in the Methodik
+    // paragraph and in a skip reason, so the weaker version passed with the
+    // whole exclusion notice deleted.
+    expect(reportHtml).toMatch(
+      /(Eine Adresse wurde|[\d.]+ Adressen wurden)\s+durch <code>robots\.txt<\/code> ausgeschlossen und deshalb nicht abgerufen/,
+    );
+    expect(reportHtml).toContain('sind hier bewusst nicht aufgeführt');
+  });
+
+  it('counts only genuine robots.txt exclusions, and does not double-count', () => {
+    // The fixture robots.txt disallows exactly one reachable address
+    // (/intern/geheim.html). /weiterleitung redirects into it and is refused by
+    // the navigation guard — but the guard also refuses foreign hosts and
+    // redirect loops, so folding that into the robots count both
+    // double-counted the page (it is in "Nicht geprüfte Seiten" as well) and
+    // attributed a non-robots refusal to robots.txt.
+    const scan = JSON.parse(readFileSync(run.scanJson, 'utf8'));
+    expect(scan.crawl.robotsExcluded).toBe(1);
+    expect(reportHtml).toContain('Eine Adresse wurde');
+    expect(
+      scan.crawl.skipped.some((entry: { url: string }) => entry.url.endsWith('/weiterleitung')),
+    ).toBe(true);
   });
 });
 

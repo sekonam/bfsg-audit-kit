@@ -190,6 +190,7 @@ politenessOptions(
     .description('Erneut prüfen, mit der Vergleichsgrundlage abgleichen, Bericht schreiben')
     .option('--out <dir>', 'Ausgabeverzeichnis')
     .option('--no-lighthouse', 'Lighthouse überspringen')
+    .option('--no-pdf', 'vorhandenes bericht.pdf nicht neu drucken')
     .option('--shop-name <name>', 'Firmenname für die Kopfzeile'),
 ).action(async (url: string, options: Record<string, unknown>) => {
   const config = loadConfig(process.env, overridesFrom(options));
@@ -202,22 +203,28 @@ politenessOptions(
     screenshotDir: join(outDir, SCREENSHOT_DIR),
     log,
   });
-  // monitor rewrites the customer-facing report from the fresh scan, so it must
-  // rewrite it with the SAME options `report` used. Dropping --shop-name here
-  // silently retitled the customer's report back to the bare host, and leaving
-  // an existing bericht.pdf untouched left two files in one folder claiming to
-  // be the same report while saying different things — with the PDF being the
-  // one that gets attached to a mail.
+  // The monitoring output is written FIRST, because it is the reason the command
+  // exists. Rewriting the report also overwrites scan.json — which readBaseline
+  // falls back to when no baseline.json is set — so a failure while reprinting
+  // the PDF (no browser on the cron host, OOM, timeout) used to leave a mutated
+  // baseline and no regression report at all.
+  const { diff, htmlPath } = await writeRegressionReport(outDir, baseline, result, {
+    shopName: options['shopName'] as string | undefined,
+    operatorName: config.operatorName,
+  });
+
+  // monitor then rewrites the customer-facing report from the fresh scan, and
+  // must rewrite it with the SAME options `report` used. Dropping --shop-name
+  // here silently retitled the customer's report back to the bare host, and
+  // leaving an existing bericht.pdf untouched left two files in one folder
+  // claiming to be the same report while saying different things — with the PDF
+  // being the one that gets attached to a mail. `--no-pdf` opts out of the
+  // second browser launch on a host that cannot afford it.
   await writeReport(outDir, result, {
     shopName: options['shopName'] as string | undefined,
     operatorName: config.operatorName,
     operatorContact: config.operatorEmail,
-    pdf: await fileExists(join(outDir, REPORT_PDF)),
-  });
-
-  const { diff, htmlPath } = await writeRegressionReport(outDir, baseline, result, {
-    shopName: options['shopName'] as string | undefined,
-    operatorName: config.operatorName,
+    pdf: options['pdf'] !== false && (await fileExists(join(outDir, REPORT_PDF))),
   });
 
   console.log('');

@@ -15,8 +15,6 @@ import { REPO_ROOT, runCli } from './helpers/cli.ts';
  * and the FILES it leaves behind, are covered by `operator-e2e.test.ts`.
  */
 
-const cli = runCli;
-
 let server: FixtureServer;
 let outDir: string;
 
@@ -32,14 +30,14 @@ afterAll(async () => {
 
 describe('bfsg doctor', () => {
   it('refuses to run without a contact URL', async () => {
-    const result = await cli(['doctor'], {});
+    const result = await runCli(['doctor'], {});
     expect(result.code).toBe(1);
     expect(result.stderr).toContain('PolicyError');
     expect(result.stderr).toContain('BFSG_CONTACT_URL is required');
   });
 
   it('prints the politeness settings, including any deviation from the defaults', async () => {
-    const result = await cli(['doctor']);
+    const result = await runCli(['doctor']);
     expect(result.code).toBe(0);
     expect(result.stdout).toContain('BfsgAuditBot/0.1 (+https://beispiel.de/bot)');
     expect(result.stdout).toContain('robots.txt: wird befolgt');
@@ -48,7 +46,7 @@ describe('bfsg doctor', () => {
   });
 
   it('refuses to ignore robots.txt without a stated reason', async () => {
-    const result = await cli(['doctor', '--ignore-robots'], {
+    const result = await runCli(['doctor', '--ignore-robots'], {
       BFSG_CONTACT_URL: 'https://beispiel.de/bot',
     });
     expect(result.code).toBe(1);
@@ -58,7 +56,7 @@ describe('bfsg doctor', () => {
 
 describe('bfsg scan → report → baseline → monitor → rank', () => {
   it('scans the fixture shop and writes a German report', async () => {
-    const result = await cli([
+    const result = await runCli([
       'scan',
       server.origin,
       '--out',
@@ -76,11 +74,11 @@ describe('bfsg scan → report → baseline → monitor → rank', () => {
   }, 180_000);
 
   it('stores a baseline and reports no regression when nothing changed', async () => {
-    const setBaseline = await cli(['baseline', join(outDir, 'muster', 'scan.json')]);
+    const setBaseline = await runCli(['baseline', join(outDir, 'muster', 'scan.json')]);
     expect(setBaseline.code).toBe(0);
     expect((await stat(join(outDir, 'muster', 'baseline.json'))).size).toBeGreaterThan(0);
 
-    const monitor = await cli([
+    const monitor = await runCli([
       'monitor',
       server.origin,
       '--out',
@@ -95,7 +93,7 @@ describe('bfsg scan → report → baseline → monitor → rank', () => {
   }, 240_000);
 
   it('ranks stored scans by prospect score', async () => {
-    const result = await cli(['rank', outDir]);
+    const result = await runCli(['rank', outDir]);
     expect(result.code).toBe(0);
     expect(result.stdout).toContain('Prospect');
     expect(result.stdout).toMatch(/127\.0\.0\.1|muster/);
@@ -106,7 +104,7 @@ describe('bfsg report and monitor guard their inputs', () => {
   it('rejects a scan.json that is not a scan result, instead of rendering it', async () => {
     const bad = join(outDir, 'kaputt.json');
     await writeFile(bad, JSON.stringify({ hello: 'world' }), 'utf8');
-    const result = await cli(['report', bad, '--out', outDir]);
+    const result = await runCli(['report', bad, '--out', outDir]);
     expect(result.code).toBe(1);
     expect(result.stderr).toContain('ScanFileError');
     expect(result.stderr).toContain('origin fehlt');
@@ -115,7 +113,7 @@ describe('bfsg report and monitor guard their inputs', () => {
   it('explains what to do when there is no baseline yet', async () => {
     const empty = join(outDir, 'leer');
     await mkdir(empty, { recursive: true });
-    const result = await cli(['monitor', server.origin, '--out', empty, '--no-lighthouse']);
+    const result = await runCli(['monitor', server.origin, '--out', empty, '--no-lighthouse']);
     expect(result.code).toBe(1);
     expect(result.stderr).toContain('ScanFileError');
     expect(result.stderr).toContain('bfsg scan');
@@ -124,7 +122,7 @@ describe('bfsg report and monitor guard their inputs', () => {
 
 describe('bfsg statement', () => {
   it('rejects the shipped template because it is still full of placeholders', async () => {
-    const result = await cli(['statement', 'data/erklaerung.beispiel.json', '--out', outDir]);
+    const result = await runCli(['statement', 'data/erklaerung.beispiel.json', '--out', outDir]);
     expect(result.code).toBe(1);
     expect(result.stderr).toContain('StatementValidationError');
     expect(result.stderr).toContain('Platzhalter');
@@ -133,7 +131,7 @@ describe('bfsg statement', () => {
 
 describe('the CLI has no way to send anything', () => {
   it('offers no mail, send or notify command', async () => {
-    const help = await cli(['--help']);
+    const help = await runCli(['--help']);
     expect(help.stdout.toLowerCase()).not.toMatch(/\b(mail|send|versenden|notify)\b/);
     // commander hard-wraps the description, so compare against collapsed text.
     expect(help.stdout.replace(/\s+/g, ' ')).toContain('Kein Versand, keine Rechtsberatung');

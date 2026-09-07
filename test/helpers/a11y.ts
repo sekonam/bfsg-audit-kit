@@ -155,11 +155,9 @@ async function auditPage(
 /** Audit the HTML a renderer returned, without ever touching the filesystem. */
 export async function auditHtmlDocument(
   html: string,
-  extra?: (page: Page) => Promise<void>,
+  options: AuditOptions = {},
 ): Promise<DocumentAudit> {
-  return auditPage((page) => page.setContent(html, { waitUntil: 'load' }), {
-    ...(extra && { extra }),
-  });
+  return auditPage((page) => page.setContent(html, { waitUntil: 'load' }), options);
 }
 
 /**
@@ -178,6 +176,31 @@ export async function auditHtmlFile(
   return auditPage(async (page) => {
     await page.goto(url, { waitUntil: 'load' });
   }, options);
+}
+
+/**
+ * Table regions that would be clipped when the document is printed to A4.
+ *
+ * `overflow-x: auto` scrolls on screen and CLIPS on paper, so a table wider
+ * than the printable width silently loses its right-hand columns in the PDF —
+ * the artefact that gets attached to a mail. 673 px is A4 (210 mm) minus the
+ * 16 mm side margins `renderPdfFromFile` uses, at 96 dpi.
+ */
+export async function clippedInPrint(filePath: string): Promise<string[]> {
+  const browser: Browser = await chromium.launch({ headless: true });
+  try {
+    const context = await browser.newContext({ viewport: { width: 673, height: 900 } });
+    const page = await context.newPage();
+    await page.goto(pathToFileURL(filePath).href, { waitUntil: 'load' });
+    await page.emulateMedia({ media: 'print' });
+    return await page.$$eval('.table-scroll', (nodes) =>
+      nodes
+        .filter((node) => node.scrollWidth > node.clientWidth + 1)
+        .map((node) => node.getAttribute('aria-label') ?? '(ohne Beschriftung)'),
+    );
+  } finally {
+    await browser.close();
+  }
 }
 
 /** Readable failure output: axe's own message plus the offending markup. */

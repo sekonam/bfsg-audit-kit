@@ -302,18 +302,80 @@ describe('robots-disallowed addresses never reach the report', () => {
           crawl: {
             ...sampleScan().crawl,
             robotsExcluded: 3,
-            skipped: [{ url: 'https://muster-shop.de/intern/admin', reason: 'nur zur Sicherheit' }],
+            skipped: [
+              {
+                url: 'https://muster-shop.de/intern/admin',
+                reason: 'durch robots.txt ausgeschlossen',
+              },
+            ],
           },
         }),
       ),
     );
+    // The entry naming a disallowed address is dropped from the table, not
+    // merely absent from the count. The describe used to promise this and the
+    // body never checked it.
+    expect(html).not.toContain('/intern/admin');
     // The whole clause, not a fragment: an earlier version double-printed the
     // count ("2 2 Adressen wurden") and a substring assertion still passed.
+    // 4, not 3: the three the crawl counted plus the one legacy entry the
+    // renderer just redacted out of the table.
     expect(html).toContain(
-      '<p>3 Adressen wurden durch <code>robots.txt</code> ausgeschlossen und deshalb nicht abgerufen.',
+      '<p>4 Adressen wurden durch <code>robots.txt</code> ausgeschlossen und deshalb nicht abgerufen.',
     );
     expect(html).toContain('sind hier bewusst nicht aufgeführt');
-    expect(html).not.toContain('3 3 ');
+    expect(html).not.toContain('4 4 ');
+  });
+
+  it('redacts a scan written before the field existed, and counts its entries', () => {
+    // `bfsg report alt-scan.json` on a scan produced by an older version: no
+    // `robotsExcluded`, and the disallowed addresses still sitting in `skipped`
+    // verbatim. Without the renderer-side filter the leak this change closes
+    // stays open for every file already on disk.
+    const base = sampleScan();
+    const legacyCrawl: Record<string, unknown> = {
+      ...base.crawl,
+      skipped: [
+        { url: 'https://muster-shop.de/intern/geheim', reason: 'durch robots.txt ausgeschlossen' },
+        {
+          url: 'https://muster-shop.de/x',
+          reason:
+            'Weiterleitung auf https://muster-shop.de/intern/y — durch robots.txt ausgeschlossen oder fremder Host',
+        },
+        { url: 'https://muster-shop.de/kopie', reason: 'identisches Template wie /' },
+      ],
+    };
+    delete legacyCrawl['robotsExcluded'];
+    const html = collapse(renderReportHtml(sampleScan({ crawl: legacyCrawl as never })));
+
+    expect(html).not.toContain('/intern');
+    expect(html).toContain('2 Adressen wurden');
+    // The non-robots skip is still shown: it is the shop's own address and the
+    // customer needs to know that page was not checked.
+    expect(html).toContain('/kopie');
+  });
+
+  it('still names the start URL when robots.txt excluded it', () => {
+    // The operator's own argument, already on their screen. Suppressing it
+    // would leave an empty report with no stated cause.
+    const html = collapse(
+      renderReportHtml(
+        sampleScan({
+          crawl: {
+            ...sampleScan().crawl,
+            robotsExcluded: 0,
+            skipped: [
+              {
+                url: 'https://muster-shop.de/',
+                reason: 'Startadresse durch robots.txt ausgeschlossen',
+              },
+            ],
+          },
+        }),
+      ),
+    );
+    expect(html).toContain('Startadresse durch robots.txt ausgeschlossen');
+    expect(html).not.toContain('bewusst nicht aufgeführt');
   });
 
   it('says nothing about exclusions when there were none', () => {

@@ -16,8 +16,13 @@ import { fileURLToPath } from 'node:url';
  *
  * Written by hand rather than with an image library: this is a one-off
  * generator for three 400-byte files, and a build-time image dependency would
- * cost more than it saves. Output is deterministic, so re-running it produces
- * byte-identical files and no spurious diff.
+ * cost more than it saves.
+ *
+ * The pixels are deterministic, but the FILE is not portable: `deflateSync`
+ * output depends on the zlib build inside the running Node, so a contributor on
+ * a different Node version can get a byte-different PNG that shows the same
+ * image. Re-run this only when the images should actually change, and discard
+ * the diff otherwise.
  */
 
 const OUT_DIR = join(

@@ -156,17 +156,26 @@ export async function crawlShop(
 
   deps.setNavigationGuard?.((candidate) => mayVisit(candidate));
 
-  const tryFetch = async (url: string): Promise<FetchedPage | undefined> => {
+  const tryFetch = async (
+    url: string,
+    options: { readonly isStartUrl?: boolean } = {},
+  ): Promise<FetchedPage | undefined> => {
     if (visited.has(url)) return undefined;
     visited.add(url);
 
     if (!(await mayVisit(url))) {
       // Everything reaching tryFetch is already same-site http(s) — extractLinks
       // filters the queue and the journey fallbacks are built from `origin` —
-      // so the only way mayVisit refuses here is robots.txt. The address is
-      // logged for the operator and counted for the report, never recorded.
-      robotsExcluded += 1;
+      // so the only way mayVisit refuses here is robots.txt.
       log(`übersprungen (robots.txt): ${url}`);
+      if (options.isStartUrl) {
+        // The start URL is the operator's own argument, already on their
+        // screen: naming it back is not a leak, and an empty report with no
+        // stated cause is worse than one that says why it is empty.
+        skipped.push({ url, reason: 'Startadresse durch robots.txt ausgeschlossen' });
+      } else {
+        robotsExcluded += 1;
+      }
       return undefined;
     }
     // --- Gate 2: page budget. This is the only place it is enforced, so that
@@ -187,10 +196,15 @@ export async function crawlShop(
       return page;
     } catch (error) {
       if (error instanceof NavigationBlockedError) {
+        // NOT counted in robotsExcluded. The guard refuses a redirect hop for
+        // three different reasons — robots.txt, a foreign host, or too many
+        // hops — and the report attributes that counter wholly to robots.txt.
+        // Folding them together double-counted this URL (it is in `skipped`
+        // too) and, under --ignore-robots, made the report say robots.txt was
+        // both ignored and the cause of an exclusion.
+        //
         // The URL we asked for is the shop's own and safe to name; the target
-        // it redirected to is either robots-disallowed or a foreign host, and
-        // is named only in the run log.
-        robotsExcluded += 1;
+        // it redirected to is named only in the run log.
         log(`übersprungen (Weiterleitung auf ${error.blockedUrl}): ${url}`);
         skipped.push({
           url,
@@ -232,7 +246,7 @@ export async function crawlShop(
   };
 
   // --- Home page: also the fingerprinting sample -------------------------
-  const home = await tryFetch(normalizedStart);
+  const home = await tryFetch(normalizedStart, { isStartUrl: true });
   if (home && home.status > 0 && home.status < 400) {
     const homeUrl = home.finalUrl || home.url;
     const result = fingerprint({ url: homeUrl, html: home.html, headers: home.headers });

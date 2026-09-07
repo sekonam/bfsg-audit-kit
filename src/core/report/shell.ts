@@ -109,7 +109,10 @@ th { background: var(--surface); }
 .scorecard .value { font-size: 1.75rem; font-weight: 700; display: block; }
 .finding { border: 1px solid var(--rule); border-radius: 0.4rem; padding: 0.25rem 1rem 1rem; margin: 1rem 0; }
 .finding h4 { margin-top: 1rem; }
-.instances { font-family: ui-monospace, "SFMono-Regular", Menlo, Consolas, monospace; font-size: 0.85rem; }
+/* Four columns of quoted markup squeezed into 375 px produced 600 px-tall rows.
+   The min-width gives the table a floor and lets its container scroll, which is
+   what the container is for. */
+.instances { font-family: ui-monospace, "SFMono-Regular", Menlo, Consolas, monospace; font-size: 0.85rem; min-width: 32rem; }
 .instances td { word-break: break-word; }
 figure { margin: 0.75rem 0; }
 figure img { max-width: 100%; height: auto; border: 1px solid var(--rule); }
@@ -122,9 +125,6 @@ code { background: var(--surface); padding: 0.05rem 0.3rem; border-radius: 0.2re
 /* The scroll container is keyboard-focusable, so it needs a visible focus ring
    of its own — see tableRegion() for why it is focusable at all. */
 .table-scroll:focus-visible { outline: 3px solid var(--accent); outline-offset: 2px; }
-/* Four columns of quoted markup squeezed into 375 px produced 600 px-tall rows.
-   Give the table a floor and let the container scroll, which is what it is for. */
-.instances { min-width: 32rem; }
 @media (max-width: 40rem) {
   /* Below this width the label column no longer fits beside its value, so the
      definition list stacks instead of half-wrapping into a ragged two-column
@@ -159,6 +159,13 @@ code { background: var(--surface); padding: 0.05rem 0.3rem; border-radius: 0.2re
  *
  * `role="region"` needs an accessible name, so the table's own caption is
  * repeated as `aria-label`.
+ *
+ * The cost, acknowledged rather than hidden: these documents carry no
+ * JavaScript — they must render offline, as a mail attachment and in the PDF
+ * printer — so the region cannot become focusable only when it actually
+ * overflows. Every table is therefore a tab stop and a landmark at every width,
+ * and a screen reader announces the caption twice. That is the accepted
+ * trade-off of the standard no-JS pattern; unreachable content is worse.
  */
 export function tableRegion(label: string, tableHtml: string): string {
   return `<div class="table-scroll" role="region" tabindex="0" aria-label="${escapeHtml(
