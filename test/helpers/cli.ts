@@ -15,7 +15,7 @@ import { fileURLToPath } from 'node:url';
 const run = promisify(execFile);
 
 export const REPO_ROOT = join(dirname(fileURLToPath(import.meta.url)), '..', '..');
-export const CLI_ENTRY = join(REPO_ROOT, 'src', 'cli', 'index.ts');
+const CLI_ENTRY = join(REPO_ROOT, 'src', 'cli', 'index.ts');
 
 /**
  * Environment for tests. The politeness override is legitimate here and only
