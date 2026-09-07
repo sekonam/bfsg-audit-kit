@@ -63,8 +63,11 @@ export function providerNameLine(provider: StatementAnswers['provider']): string
   const form = provider.legalForm?.trim();
   if (!form) return provider.name;
   const name = provider.name.trim();
+  // `\\b` only holds when the form ends in a word character. German forms often
+  // do not — "Muster e.K." + "e.K." produced "Muster e.K. (e.K.)".
+  const boundary = /\w$/.test(form) ? '\\b' : '(?!\\w)';
   const alreadyNamed = new RegExp(
-    `(^|[\\s(])${form.replace(/[.*+?^${}()|[\\]\\\\]/g, '\\$&')}\\b`,
+    `(^|[\\s(])${form.replace(/[.*+?^${}()|[\\]\\\\]/g, '\\$&')}${boundary}`,
     'i',
   ).test(name);
   return alreadyNamed ? name : `${name} (${form})`;

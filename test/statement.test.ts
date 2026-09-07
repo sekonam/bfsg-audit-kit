@@ -237,6 +237,10 @@ describe('providerNameLine', () => {
     expect(providerNameLine(provider('Muster GmbH & Co. KG', 'GmbH & Co. KG'))).toBe(
       'Muster GmbH & Co. KG',
     );
+    // A form ending in punctuation has no \b after it, which is most of the
+    // German ones: e.K., e.V., mbH.
+    expect(providerNameLine(provider('Muster e.K.', 'e.K.'))).toBe('Muster e.K.');
+    expect(providerNameLine(provider('Musterverein e.V.', 'e.V.'))).toBe('Musterverein e.V.');
   });
 
   it('appends it when the name does not', () => {
