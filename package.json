@@ -29,6 +29,7 @@
     "test:watch": "vitest",
     "test:coverage": "vitest run --coverage",
     "cli": "node --experimental-strip-types src/cli/index.ts",
+    "demo:screens": "node --experimental-strip-types scripts/demo-screens.ts",
     "verify": "pnpm run format:check && pnpm run lint && pnpm run typecheck && pnpm run test:coverage && pnpm run build"
   },
   "dependencies": {

@@ -52,8 +52,13 @@ All customer-facing output is **German**. Code, tests and internal docs are Engl
 ## Development
 
 ```bash
-pnpm run verify   # format:check + lint + typecheck + test:coverage + build
+pnpm run verify        # format:check + lint + typecheck + test:coverage + build
+pnpm run demo:screens  # full operator run + screenshots of every generated document
 ```
+
+`demo:screens` writes `.artifacts/demo-screens/index.html` (gitignored): screenshots of the
+report, both forms of the Barrierefreiheitserklärung and the monitoring report, at a desktop and
+a 375 px viewport. It exists so the customer-facing documents get looked at, not just asserted on.
 
 Coverage floor is **80 % on `src/core/**`** (crawl policy, normalisation, scoring, rendering,
 diffing) and CI fails below it. No test makes a live network call: everything is scanned from

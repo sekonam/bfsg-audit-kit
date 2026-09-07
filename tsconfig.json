@@ -20,5 +20,5 @@
     "isolatedModules": true,
     "esModuleInterop": true
   },
-  "include": ["src/**/*.ts", "test/**/*.ts", "*.config.ts", "eslint.config.js"]
+  "include": ["src/**/*.ts", "test/**/*.ts", "scripts/**/*.ts", "*.config.ts", "eslint.config.js"]
 }

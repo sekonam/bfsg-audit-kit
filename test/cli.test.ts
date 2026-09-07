@@ -1,46 +1,21 @@
 import { afterAll, beforeAll, describe, expect, it } from 'vitest';
-import { execFile } from 'node:child_process';
-import { promisify } from 'node:util';
 import { mkdir, mkdtemp, rm, stat, writeFile } from 'node:fs/promises';
-import { dirname, join } from 'node:path';
-import { fileURLToPath } from 'node:url';
+import { join } from 'node:path';
 import { tmpdir } from 'node:os';
 import { startFixtureServer, type FixtureServer } from './helpers/server.ts';
+import { REPO_ROOT, runCli } from './helpers/cli.ts';
 
 /**
  * The CLI is exercised as a subprocess against the LOCAL fixture shop, because
  * that is how it is actually used. In particular this test pins the behaviour
  * that matters most operationally: without BFSG_CONTACT_URL the tool refuses to
  * do anything at all.
+ *
+ * This file covers the commands one at a time. The full operator sequence,
+ * and the FILES it leaves behind, are covered by `operator-e2e.test.ts`.
  */
 
-const run = promisify(execFile);
-const REPO_ROOT = join(dirname(fileURLToPath(import.meta.url)), '..');
-const CLI = join(REPO_ROOT, 'src', 'cli', 'index.ts');
-
-const POLITE_TEST_ENV = {
-  BFSG_CONTACT_URL: 'https://beispiel.de/bot',
-  BFSG_OPERATOR_NAME: 'Prüfstelle Muster',
-  BFSG_MIN_REQUEST_INTERVAL_MS: '0',
-  BFSG_POLITENESS_OVERRIDE_REASON: 'Lokale Test-Fixtures auf 127.0.0.1, kein fremder Server',
-};
-
-async function cli(
-  args: string[],
-  env: Record<string, string> = POLITE_TEST_ENV,
-): Promise<{ stdout: string; stderr: string; code: number }> {
-  try {
-    const { stdout, stderr } = await run('node', ['--experimental-strip-types', CLI, ...args], {
-      cwd: REPO_ROOT,
-      env: { PATH: process.env['PATH'] ?? '', HOME: process.env['HOME'] ?? '', ...env },
-      maxBuffer: 20 * 1024 * 1024,
-    });
-    return { stdout, stderr, code: 0 };
-  } catch (error) {
-    const e = error as { stdout?: string; stderr?: string; code?: number };
-    return { stdout: e.stdout ?? '', stderr: e.stderr ?? '', code: e.code ?? 1 };
-  }
-}
+const cli = runCli;
 
 let server: FixtureServer;
 let outDir: string;

@@ -48,6 +48,14 @@ Every bug found in review gets a **failing test first**, then the fix.
   in a real Chromium and runs axe. That check has already caught two genuine defects (duplicate
   element ids from a finding mapping to two criteria; a skipped heading level in the
   best-practice section).
+- **Audit the file, not the string.** `auditHtmlDocument()` checks what a renderer returned;
+  `auditHtmlFile()` checks what the CLI wrote, over `file://`, with its screenshots next to it.
+  Only the second one sees file writing, relative asset paths, PDF printing and the ENTWURF gate.
+  `test/operator-e2e.test.ts` drives the whole operator sequence and asserts on the artefacts.
+- **Look at the documents.** `pnpm run demo:screens` performs a full operator run against the
+  fixture shop and photographs every generated document at 1280 px and 375 px into
+  `.artifacts/demo-screens/` (gitignored), with an index page. axe answers "is it accessible",
+  not "would a merchant pay for this" — these documents are sold, so somebody has to look.
 - Coverage floor is **80% on `src/core/**`** and CI fails below it. It currently sits near 98%.
 - New fixture defects get a comment at the top of the fixture file saying what was planted and
   why. A fixture nobody can read is a fixture nobody will maintain.
