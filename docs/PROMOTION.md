@@ -76,6 +76,138 @@ the same thing. Entering that SERP at zero authority is a multi-year project.
 
 Treat inbound as something that may compound over years, and never as the plan for month one.
 
+## 5. Gate 1 runbook — 15 agencies in one week, ~€60
+
+The single most valuable week available. It costs telephone time and postage, needs no live
+crawling, and it answers the only question that decides this business.
+
+### 5.1 Build the list (half a day, 15 agencies)
+
+| Source                                    | Filter for                                                       |
+| ----------------------------------------- | ---------------------------------------------------------------- |
+| Shopware partner directory                | German-speaking implementation partners, consumer-retail clients |
+| Shopify partner directory                 | Same; agencies listing German shops in their portfolio           |
+| Agency portfolios found from shop footers | The agency that actually built shops in your target segment      |
+
+**Qualify on three things:** they build or maintain German B2C shops; they are small enough that
+twenty hours of WCAG work is a burden (roughly 3–30 people — larger firms have it in-house); and
+their Impressum carries a telephone number.
+
+**Exclude the ~35 accessibility specialists on `barrierefreie-agenturen.de`** — § 1.
+
+Record per row, and no more: `agency · city · platform · phone · source URL · date collected ·
+attempts · outcome · next action`. A company's published business contact details are not personal
+data; a **named employee's** direct line is. If you record a name, `docs/GDPR-ART14-NOTICE.md`
+applies — so prefer the switchboard.
+
+### 5.2 The call
+
+Ask for **whoever owns delivery** — technical lead, project lead, owner. Not sales; sales will
+route you to a partnership form.
+
+The frame, in twenty seconds: _BFSG applies to your clients' shops since June 2025; you are
+probably being asked about it; I do the WCAG remediation under your brand, fixed price, your
+client never hears my name._ Then stop talking.
+
+| Objection                     | Answer                                                                                                                                    |
+| ----------------------------- | ----------------------------------------------------------------------------------------------------------------------------------------- |
+| "We do that ourselves."       | Then you know it is twenty hours a shop. I am overflow capacity for the weeks you do not have them.                                       |
+| "Our clients are not asking." | Fair. May I send one sample report so it is on the shelf when they do?                                                                    |
+| "Send me something by email." | **They may invite it — an invitation is consent.** Confirm on the call, note the date and wording in the tracker. Never send unsolicited. |
+| "What does it cost?"          | €1,600–2,900 per shop white-label; you price to your client. `PRODUCT-SPEC.md` § 5.                                                       |
+
+**Rules:** three dial attempts maximum, at different times of day, then post the letter instead.
+Never leave a pitch on voicemail — leave a name and call back. Show the fixture-shop sample from
+`pnpm run demo:screens` if they want to see the output; do not scan their client's shop to make a
+point unless they ask you to.
+
+### 5.3 Scoring the gate
+
+**A yes is a named client shop and a date**, or an explicit "send it and we will trial it on the
+next project". "Sounds interesting" is a no.
+
+```
+≥ 2 of 15 willing to trial → proceed to Gate 2
+1 of 15                    → one more block of 15 before deciding
+0 of 15                    → stop; there is no non-linear channel here
+```
+
+Timebox it to **five working days**. A gate that drifts for a month stops being a measurement.
+
+---
+
+## 6. Gate 2 runbook — 30 calls + 20 letters, ~€60
+
+### 6.1 Who is in scope
+
+German, consumer-facing, **≥ 10 employees OR > €2M turnover** — micro-enterprises are exempt and
+selling to them is both pointless and unkind. `PRODUCT-SPEC.md` § 7. Check this **before**
+scanning, not after.
+
+### 6.2 Scan discipline
+
+```bash
+bfsg scan https://shop.example --out out/shop.example
+bfsg rank out
+```
+
+- Scan only shops you have a **concrete reason to approach**. Fifty is the target, not five
+  thousand.
+- `rank` sorts by prospect score. **High is not "worst shop"** — a shop at 95 has nothing to sell,
+  a shop at 10 needs a rebuild the fixed price cannot absorb. Work the middle.
+- One shop per approach, ≤ 20 pages, the politeness defaults untouched.
+
+### 6.3 The approach
+
+Prepare **one finding, in the operator's language, with where it appears**: "Auf Ihrer
+Produktseite haben die Icon-Buttons keine Beschriftung — Screenreader lesen dort nur _Button_."
+Then offer the full report free.
+
+| Channel   | Volume            | Notes                                                                            |
+| --------- | ----------------- | -------------------------------------------------------------------------------- |
+| Telephone | ~10/day × 3 days  | `outreach/telefon-skript.md`, native-reviewed first                              |
+| Post      | 20 over the block | Printed Quick-Check summary + QR to the full report; `outreach/brief-vorlage.md` |
+
+```
+≥ 5 of 50 asking for the full report or a quote → pass
+```
+
+### 6.4 Follow-up, once
+
+One follow-up per contact after 7–10 days, **on the same channel**. Never switch to email, never a
+third contact. Record every "no" and honour it permanently — keep a do-not-contact list and check
+it before every block.
+
+---
+
+## 7. The first 30 days, as a calendar
+
+| Week  | Do                                                                                                                     | Spend |
+| ----- | ---------------------------------------------------------------------------------------------------------------------- | ----- |
+| **0** | Contact page live; `bfsg doctor` clean; native review of both outreach drafts; lawyer briefed on the statement wording | ~€15  |
+| **1** | Gate 1: build 15, call 15, log 15                                                                                      | ~€60  |
+| **2** | Gate 2 part one: qualify 50 in-scope shops, scan the first 25, 10 calls/day                                            | ~€30  |
+| **3** | Gate 2 part two: remaining scans, 20 letters, one follow-up round                                                      | ~€30  |
+| **4** | Read both gates against the numbers, in writing, before deciding anything                                              | —     |
+
+**Write the gate result down as a sentence with the counts in it** before you interpret it. The
+predictable failure at week 4 is a plausible story about _why_ the numbers were low that quietly
+replaces the decision rule.
+
+---
+
+## 8. Pipeline hygiene
+
+| Rule                                                        | Why                                                                                   |
+| ----------------------------------------------------------- | ------------------------------------------------------------------------------------- |
+| Source and date on every record, from the first row         | Art. 14 GDPR asks exactly this, and it is the first thing a hostile recipient attacks |
+| A permanent do-not-contact list, checked before every block | One re-contact after a refusal is the cheapest way to earn an Abmahnung               |
+| Prospect scans deleted when the prospect is closed out      | They are a customer artefact; `MAINTENANCE.md` § retention                            |
+| Never scan to make a point                                  | The politeness policy is the licence to operate here                                  |
+| One channel per contact, one follow-up, then stop           | Persistence past that converts nobody and costs standing                              |
+
+---
+
 ## ~ LinkedIn / XING — warming only
 
 Grey zone. Connecting and being visible is fine; pitching in a DM is the same problem as email

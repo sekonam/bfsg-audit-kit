@@ -124,3 +124,119 @@ If you add a field that comes from an engine or from a `scan.json`, assume it is
 | RDG tests in `test/report.test.ts` | Every generated document is checked for legal claims in both directions.        |
 | Browser a11y tests                 | The report and the statement must pass the standard they audit against.         |
 | 80% coverage floor on `src/core`   | The scoring and rendering logic is the part that is silently wrong if untested. |
+
+---
+
+## Operating the practice — the recurring work
+
+Everything above keeps the _instruments_ honest. This section keeps the _practice_ running. It is
+one operator, so the only maintenance plan that survives is one small enough to do in a bad week.
+
+**Weekly (30 min)**
+
+```
+[ ] Every customer message answered
+[ ] Care retainers due this week run and read       (see below)
+[ ] Prospect follow-ups due today made — one per contact, same channel, then stop
+[ ] Hours logged per project, per task              ← Gate 3 is read off this
+```
+
+**Monthly (1 h)**
+
+```
+[ ] pnpm outdated — read, do not blanket-accept; axe-core has its own procedure above
+[ ] pnpm audit — read; the Playwright advisory above is knowingly accepted
+[ ] pnpm run verify green
+[ ] Care runs for every retainer customer, reports sent by hand
+[ ] Five minutes: first published BFSG fine? first § 3a UWG ruling? Both are public.
+[ ] Prospect records closed out and deleted where the answer was no
+```
+
+**Quarterly (2–3 h)**
+
+```
+[ ] Full suite including browser tests
+[ ] Competitor prices re-read (PRODUCT-SPEC §2) — BFSG-Guard, AccessGO, Eye-Able
+[ ] One manual re-test per Care customer
+[ ] Every statement's lastReviewedOn checked for staleness
+[ ] Effort model checked against logged hours; reprice if >35 h/project persists
+```
+
+**Annually**
+
+```
+[ ] Market surveillance authority details re-verified per statement; authority.verifiedOn updated
+[ ] Statement wording re-read with the lawyer if the law or the guidance moved
+[ ] Score curve recalibrated against your own conversions once ten projects exist
+```
+
+---
+
+## The Care retainer, month by month (SKU E)
+
+€59/month against roughly ten minutes of machine time and two hours of fix budget per quarter.
+It is only defensible as a **retention add-on to a remediation project**, never sold alone —
+BFSG-Guard sells more automation for €49.
+
+```bash
+bfsg monitor https://shop.example --out out/shop.example --shop-name "Muster GmbH"
+```
+
+| Exit code | Meaning        | Do                                                                                                                                                              |
+| --------- | -------------- | --------------------------------------------------------------------------------------------------------------------------------------------------------------- |
+| 0         | No regression  | Send the report anyway. The retainer's value is the customer seeing it every month.                                                                             |
+| 2         | Regression     | Read it before sending. A regression is usually a merchant content change, not a theme bug — say which, in one sentence, and quote the fix from the 2 h budget. |
+| other     | The run failed | Fix it before the customer notices a missing month. There is **no email channel by design**; wire the exit code into a local notifier.                          |
+
+**Two ways this quietly goes wrong, both already fixed in code but worth recognising:** an
+axe-core upgrade mid-retainer produces a _fabricated_ regression — re-baseline every retainer
+customer in the same run as the upgrade and say so in that month's report; and a `monitor` run
+must never overwrite the customer's report or destroy the baseline while producing nothing.
+
+---
+
+## Retention — customer and prospect data
+
+There is no server, so retention is a discipline rather than a setting.
+
+| Artefact                                   | Lives in                                       | Deleted when                                                                                                                                  |
+| ------------------------------------------ | ---------------------------------------------- | --------------------------------------------------------------------------------------------------------------------------------------------- |
+| `scan.json`, screenshots, generated report | the customer's directory under `BFSG_DATA_DIR` | the engagement ends — it is a customer artefact                                                                                               |
+| Monitoring baseline                        | same                                           | the retainer ends                                                                                                                             |
+| Prospect rows (agency or shop)             | your tracker                                   | the prospect is closed out, or on request; a refusal is kept as a do-not-contact entry, which is the one record you keep _longer_, on purpose |
+| Invoices and their attachments             | your accounting system                         | per German retention law — ask the Steuerberater, not this file                                                                               |
+
+**Back up the customer directories** — a report you cannot reproduce after a shop changed is a
+report you cannot defend. A scan is not reproducible: the site moves under you.
+
+`scan.json` holds URLs and markup from public pages. It is business data, not personal data, but
+it is still the customer's. Do not put it in a public repository, a shared drive or a support
+ticket.
+
+---
+
+## Business admin cadence
+
+Not code, and it is where a one-person practice actually fails.
+
+| When             | Task                                                                                              |
+| ---------------- | ------------------------------------------------------------------------------------------------- |
+| Before invoice 1 | Gewerbeanmeldung, AGB, privacy policy, a Steuerberater. `ROADMAP.md` human-steps table.           |
+| Per project      | Written scope naming what is **out** of scope: PDFs, video captions, third-party embeds           |
+| Per project      | Hours per task, logged as you go — Gate 3 cannot be reconstructed from memory                     |
+| Monthly          | Invoices out; retainer renewals checked                                                           |
+| Quarterly        | Read the ceiling honestly: ~€8–10k/month gross at ~25 h/project, of which ~€900 recurring at best |
+
+---
+
+## When to stop maintaining this repository
+
+Written down now, because the pull will be to keep polishing the tool instead of making calls.
+
+- **Gate 1 returned 0 of 15.** Stop. Archive the repo with a dated note saying why; do not
+  keep it warm with dependency bumps.
+- **No project in 90 days.** Reduce to the quarterly checklist only. The axe and Playwright pins
+  are the only things that rot dangerously, and both fail loudly.
+- **A change here is not driven by a defect seen twice in real projects.** Then it is Gate 4 work
+  arriving early again — which is exactly the inversion `PRODUCT-SPEC.md` § 9 warns about, and this
+  repository is already the evidence that it is a comfortable way to avoid the telephone.

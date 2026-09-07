@@ -21,6 +21,10 @@ regressions.
 | **§ 7 Abs. 2 UWG** — no cold email to German businesses                     | **No email capability exists.** `scripts/guard-no-email.sh` fails CI if a mail transport is added. Outreach is telephone and post only                   |
 | **GDPR**                                                                    | Art. 30 record and Art. 14 notice in `docs/`; the prospect store keeps a source and a collection date per record                                         |
 
+**New here?** The tooling is Gate 4 work delivered before Gates 1–3. What it takes to actually
+start — the German prerequisite, the contact page, the lawyer review, and the €60 week that
+decides this — is in [`docs/START-HERE.md`](docs/START-HERE.md).
+
 ## Quick start
 
 ```bash
@@ -83,6 +87,7 @@ exist precisely to prevent that.
 
 | Document                                          | Read it when                                                                               |
 | ------------------------------------------------- | ------------------------------------------------------------------------------------------ |
+| `docs/START-HERE.md`                              | **Read first.** What it takes to start — prerequisites, costs, the gate order.             |
 | `docs/PRODUCT-SPEC.md`                            | Deciding what to build, price or refuse. SKUs, competitor prices, the four decision gates. |
 | `docs/TECHNICAL-SPEC.md`                          | Changing the crawler, the scoring model or the document generators.                        |
 | `docs/RUNBOOK.md`                                 | Actually running an audit, start to finish, including the 🧑 manual half.                  |
