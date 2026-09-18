@@ -7,7 +7,8 @@ regressions.
 
 > **This is not a product.** It is not a SaaS, not multi-tenant, and it has no billing, accounts
 > or subscriptions — deliberately. That half of the market is already sold by BFSG-Guard
-> (€49–99/month), AccessGO (€39/month) and Eye-Able (3,000+ customers). The billable value is the
+> (€19.99–49/month), AccessGO (€39–79/month) and Eye-Able (3,000+ customers). The billable value is
+> the
 > ~43% of WCAG criteria a machine cannot check, done by a person. This repo automates the other,
 > non-billable 90% of the work: prospecting, scanning, reporting, statement generation.
 > Background: `docs/PRODUCT-SPEC.md`.

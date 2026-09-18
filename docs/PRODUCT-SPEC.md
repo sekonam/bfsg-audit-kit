@@ -10,12 +10,12 @@ subcontractor to agencies, and direct to shops with no agency.
 
 **It is not a SaaS product, and building one would be a mistake with a name and a price.**
 
-| Competitor                              | Price            | What they already sell                                                                                                                             |
-| --------------------------------------- | ---------------- | -------------------------------------------------------------------------------------------------------------------------------------------------- |
-| **BFSG-Guard** (`bfsg-software.de`, DE) | **€49–99/month** | automated WCAG scanning, **Anlage-3 Barrierefreiheitserklärung**, weekly monitoring with alerts, authority-ready PDF reports, remediation roadmaps |
-| **AccessGO** (DE)                       | **€39/month**    | all-in-one, automatic Barrierefreiheitserklärung                                                                                                   |
-| **Eye-Able / Web Inclusion GmbH** (DE)  | on request       | **3,000+ customers, €20M raised**, Telekom / Roche / HypoVereinsbank                                                                               |
-| WAVE · axe DevTools · Lighthouse        | **free**         | the scanning engine itself                                                                                                                         |
+| Competitor                              | Price                                                      | What they already sell                                                                                                                                                                  |
+| --------------------------------------- | ---------------------------------------------------------- | --------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------- |
+| **BFSG-Guard** (`bfsg-software.de`, DE) | **€19.99/month beta → €49/month regular**                  | automated WCAG scanning, **Anlage-3 Barrierefreiheitserklärung**, weekly monitoring with alerts, authority-ready PDF reports, remediation roadmaps, a public competitor-comparison page |
+| **AccessGO** (DE)                       | **€39/month Standard, €79/month Pro (audit + monitoring)** | all-in-one, automatic Barrierefreiheitserklärung; Pro tier is new since this spec was first written                                                                                     |
+| **Eye-Able / Web Inclusion GmbH** (DE)  | on request                                                 | **3,000+ customers, €20M raised**, Telekom / Roche / HypoVereinsbank                                                                                                                    |
+| WAVE · axe DevTools · Lighthouse        | **free**                                                   | the scanning engine itself                                                                                                                                                              |
 
 That table _is_ the feature list of this repository. It is already sold, in German, by German
 companies, at a price a solo operator cannot undercut and cannot out-market. **The software here
@@ -167,5 +167,10 @@ recommended order: the tooling exists, but it does not substitute for Gates 1–
 polish here changes the answer to "will an agency trial this?".
 
 **Standing watch item, five minutes a month:** the first published BFSG fine and the first
-§ 3a UWG ruling. Fourteen months in, neither exists. Either would change demand materially, and
-both are public.
+§ 3a UWG ruling. **Update, 2026-09:** the first has happened — the market surveillance authority
+(MLBF, Magdeburg) began active enforcement in January 2026, with fines from €10,000 to €100,000,
+and the first private Abmahnung landed as early as August 2025. The second has not: no court has
+yet ruled whether BFSG duties count as a `Marktverhaltensregel` under § 3a UWG, which is the
+prerequisite for those Abmahnungen to hold up; first rulings are expected in the second half of 2026. **That ruling remains the single largest lever on demand** — see
+`docs/MARKET-RESEARCH-2026-09.md` § 1 and `docs/PRODUCT-PERSPECTIVES.md` A3 for the detail and
+what it would change.

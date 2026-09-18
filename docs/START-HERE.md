@@ -158,9 +158,12 @@ the hours that also deliver the work — which is why the agency channel is rank
 | —    | The German prerequisite is not met | Stop before Gate 1. The spec is void without it.                                                                                        |
 
 **And one watch item, five minutes a month:** the first published BFSG fine and the first § 3a UWG
-ruling. Fourteen months after the law took effect, neither exists — which is the single largest
-reason demand here is a narrative rather than a demonstrated payment. Either event is public and
-would change the picture materially.
+ruling. **Update, 2026-09:** the first has happened — administrative fines (€10,000–100,000) began
+in January 2026 and the first private Abmahnung was sent in August 2025. The second has not: courts
+have not yet ruled whether BFSG duties are a `Marktverhaltensregel` under § 3a UWG, expected in the
+second half of 2026 — that ruling, not the fines, is the single largest remaining reason demand
+here is still partly a narrative rather than a demonstrated payment. See
+`docs/MARKET-RESEARCH-2026-09.md` for detail.
 
 ---
 
